@@ -200,18 +200,72 @@ function updateHighlight() {
             if (intersects(rect, selectionRect)) {
                 highlight.add(range);
 
-                selectedCharacters.push(
-                    node.textContent[i]
-                );
+                selectedCharacters.push({
+                    character: node.textContent[i],
+                    rect: rect
+                });
             }
         }
     }
 
-    CSS.highlights.set("rectangle-selection",highlight);
-    selectedText = selectedCharacters.join("");
+    CSS.highlights.set(
+        "rectangle-selection",
+        highlight
+    );
+
+    selectedText = reconstructText(selectedCharacters);
     hasSelection = selectedText.length > 0;
 
     console.log(selectedText);
+}
+
+// -------------------------
+// Reconstruct selected text by adding line breaks based on the visual layout of the characters
+// -------------------------
+
+function reconstructText(characters) {
+    if (characters.length === 0) {
+        return "";
+    }
+
+    // Sort visually:
+    // top → bottom, then left → right
+    characters.sort((a, b) => {
+        const verticalDifference = a.rect.top - b.rect.top;
+
+        if (Math.abs(verticalDifference) > 2) {
+            return verticalDifference;
+        }
+
+        return a.rect.left - b.rect.left;
+    });
+
+    let result = "";
+
+    let currentRowTop = characters[0].rect.top;
+    let previousCharacter = characters[0];
+
+    result += previousCharacter.character;
+
+    for (let i = 1; i < characters.length; i++) {
+        const character = characters[i];
+
+        // Determine whether this character starts
+        // a new visual row.
+        const rowDifference =
+            Math.abs(character.rect.top - currentRowTop);
+
+        if (rowDifference > 2) {
+            result += "\n";
+            currentRowTop = character.rect.top;
+        }
+
+        result += character.character;
+
+        previousCharacter = character;
+    }
+
+    return result;
 }
 
 function clearSelection() {
