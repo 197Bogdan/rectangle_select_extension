@@ -35,10 +35,6 @@ let startY = 0;
 let endX = 0;
 let endY = 0;
 
-
-// All text nodes in the page.
-let textNodes = [];
-
 // Only text nodes currently visible in the viewport.
 // Each entry contains:
 // { node, rect }
@@ -51,7 +47,7 @@ let visibleTextNodeRectsValid = false;
 // -------------------------
 
 function getTextNodes() {
-    textNodes = [];
+    const textNodes = [];
 
     const walker = document.createTreeWalker(
         document.body,
@@ -59,14 +55,17 @@ function getTextNodes() {
     );
 
     let node;
+
     while (node = walker.nextNode()) {
         textNodes.push(node);
     }
+    return textNodes;
 }
 
 
-// ------------------------- 
-// Get all visible text nodes in the viewport. They are invalidated on scroll or resize.
+// -------------------------
+// Get all visible text nodes in the viewport
+// They are invalidated on scroll or resize.
 // -------------------------
 
 function rebuildVisibleTextNodeRects() {
@@ -79,14 +78,19 @@ function rebuildVisibleTextNodeRects() {
         bottom: window.innerHeight
     };
 
+    const textNodes = getTextNodes();
     for (const node of textNodes) {
+
         // -------------------------
         // Get text node bounds
         // -------------------------
 
         const range = document.createRange();
+
         range.selectNodeContents(node);
+
         const rect = range.getBoundingClientRect();
+
 
         // -------------------------
         // Ignore invisible nodes
@@ -96,6 +100,7 @@ function rebuildVisibleTextNodeRects() {
             continue;
         }
 
+
         // -------------------------
         // Ignore nodes outside viewport
         // -------------------------
@@ -104,15 +109,48 @@ function rebuildVisibleTextNodeRects() {
             continue;
         }
 
+
         // -------------------------
         // Cache visible nodes
         // -------------------------
 
-        visibleTextNodeRects.push({ node, rect });
-  
+        visibleTextNodeRects.push({
+            node,
+            rect
+        });
     }
 
     visibleTextNodeRectsValid = true;
+}
+
+
+// -------------------------
+// Debug: print all visible text-node rectangles
+// -------------------------
+
+function logVisibleTextNodeRects() {
+
+    console.log(
+        `VISIBLE TEXT NODE RECTANGLES (${visibleTextNodeRects.length})`
+    );
+
+    const rows = visibleTextNodeRects.map((entry, index) => {
+
+        const rect = entry.rect;
+
+        return {
+            index,
+            text: entry.node.textContent,
+            left: rect.left,
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
+            width: rect.width,
+            height: rect.height
+        };
+    });
+
+    console.table(rows);
 }
 
 
@@ -124,22 +162,28 @@ function invalidateVisibleTextNodeRects() {
     visibleTextNodeRectsValid = false;
 }
 
+
 // -------------------------
 // Invalidate viewport cache on scroll or resize
 // -------------------------
+
 window.addEventListener("scroll", () => {
     invalidateVisibleTextNodeRects();
 });
+
 window.addEventListener("resize", () => {
     invalidateVisibleTextNodeRects();
 });
 
+const observer = new MutationObserver(() => {
+    invalidateVisibleTextNodeRects();
+});
 
-// -------------------------
-// Scan page once when extension starts
-// -------------------------
-
-getTextNodes();
+observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true
+});
 
 
 // -------------------------
@@ -159,13 +203,16 @@ document.documentElement.appendChild(selectionBox);
 
 
 function updateSelectionBox() {
+
     const left = Math.min(startX, endX);
     const top = Math.min(startY, endY);
+
     const width = Math.abs(endX - startX);
     const height = Math.abs(endY - startY);
 
     selectionBox.style.left = `${left}px`;
     selectionBox.style.top = `${top}px`;
+
     selectionBox.style.width = `${width}px`;
     selectionBox.style.height = `${height}px`;
 }
@@ -178,7 +225,8 @@ function updateSelectionBox() {
 document.addEventListener(
     "mousemove",
     (event) => {
-        if ( !enabled ) {
+
+        if (!enabled) {
             return;
         }
 
@@ -193,6 +241,7 @@ document.addEventListener(
         endY = mouseY;
 
         updateSelectionBox();
+
         updateSelectedCharacters();
     }
 );
@@ -205,6 +254,7 @@ document.addEventListener(
 document.addEventListener(
     "mousedown",
     (event) => {
+
         if (!enabled) {
             return;
         }
@@ -229,11 +279,13 @@ document.addEventListener(
 document.addEventListener(
     "keydown",
     (event) => {
-        if ( !enabled ) {
+
+        if (!enabled) {
             return;
         }
 
-        if ( event.key === "Shift" && !selecting ) {
+        if (event.key === "Shift" && !selecting) {
+
             selecting = true;
 
             // Clear normal browser text selection
@@ -246,7 +298,7 @@ document.addEventListener(
             endY = mouseY;
 
             // Show selection box
-            selectionBox.style.display ="block";
+            selectionBox.style.display = "block";
 
             updateSelectionBox();
 
@@ -267,17 +319,25 @@ document.addEventListener(
 document.addEventListener(
     "keyup",
     (event) => {
-        if ( !enabled ) {
+
+        if (!enabled) {
             return;
         }
 
-        if ( event.key === "Shift" && selecting ) {
+        if (event.key === "Shift" && selecting) {
+
             selecting = false;
 
             // Hide selection box
             selectionBox.style.display = "none";
 
-            console.log( "Selection finished:",
+
+            // Make sure the latest selection has been calculated
+            updateSelectedCharacters();
+
+
+            console.log(
+                "Selection finished:",
                 {
                     startX,
                     startY,
@@ -285,6 +345,55 @@ document.addEventListener(
                     endY
                 }
             );
+
+
+            // -------------------------
+            // DEBUG OUTPUT
+            // -------------------------
+
+            // console.log(
+            //     "=============================="
+            // );
+
+            // console.log(
+            //     "SELECTION RECTANGLE"
+            // );
+
+            // console.table([{
+            //     left: Math.min(startX, endX),
+            //     top: Math.min(startY, endY),
+            //     right: Math.max(startX, endX),
+            //     bottom: Math.max(startY, endY),
+            //     width: Math.abs(endX - startX),
+            //     height: Math.abs(endY - startY)
+            // }]);
+
+
+            // console.log(
+            //     "=============================="
+            // );
+
+            // Print all visible text-node rectangles
+            // logVisibleTextNodeRects();
+
+
+            // console.log(
+            //     "=============================="
+            // );
+
+            // // Print all selected character rectangles
+            // logSelectedCharacterRects();
+
+
+            // console.log(
+            //     "=============================="
+            // );
+
+            // console.log(
+            //     "SELECTED TEXT:"
+            // );
+
+            // console.log(selectedText);
         }
     }
 );
@@ -315,7 +424,8 @@ document.documentElement.appendChild(
 document.addEventListener(
     "keydown",
     async (event) => {
-        if ( !enabled ) {
+
+        if (!enabled) {
             return;
         }
 
@@ -341,13 +451,16 @@ document.addEventListener(
         event.preventDefault();
 
         try {
+
             await navigator.clipboard.writeText(
                 selectedText
             );
 
             console.log("Copied:");
             console.log(selectedText);
+
         } catch (error) {
+
             console.error(
                 "Failed to copy selection to clipboard:",
                 error
@@ -362,6 +475,7 @@ document.addEventListener(
 // -------------------------
 
 function updateSelectedCharacters() {
+
     // -------------------------
     // Make sure viewport cache exists
     // -------------------------
@@ -370,6 +484,7 @@ function updateSelectedCharacters() {
         rebuildVisibleTextNodeRects();
     }
 
+
     // -------------------------
     // Selection rectangle
     // -------------------------
@@ -377,6 +492,7 @@ function updateSelectedCharacters() {
     const selectionRect = {
         left: Math.min(startX, endX),
         right: Math.max(startX, endX),
+
         top: Math.min(startY, endY),
         bottom: Math.max(startY, endY)
     };
@@ -396,27 +512,42 @@ function updateSelectedCharacters() {
     // Process ONLY visible nodes
     // -------------------------
 
-    for ( const entry of visibleTextNodeRects ) {
+    for (const entry of visibleTextNodeRects) {
+
         nodeCount++;
+
         const node = entry.node;
+
 
         // -------------------------
         // Process characters
         // -------------------------
 
-        for ( let i = 0; i < node.length; i++ ) {
+        for (let i = 0; i < node.length; i++) {
+
             characterCount++;
 
             const range = document.createRange();
-            range.setStart( node, i );
-            range.setEnd( node, i + 1 );
+
+            range.setStart(node, i);
+            range.setEnd(node, i + 1);
+
 
             const rect = range.getBoundingClientRect();
-            const isSelected = intersects( rect, selectionRect );
+
+            const isSelected =
+                intersects(rect, selectionRect);
+
 
             if (isSelected) {
+
                 highlight.add(range);
-                selectedCharacters.push({ character: node.textContent[i], rect });
+
+                selectedCharacters.push({
+                    character: node.textContent[i],
+                    rect
+                });
+
                 selectedCount++;
             }
         }
@@ -437,8 +568,56 @@ function updateSelectedCharacters() {
     // Reconstruct text
     // -------------------------
 
-    selectedText = reconstructText( selectedCharacters );
-    hasSelection = selectedText.length > 0;
+    selectedText =
+        reconstructText(selectedCharacters);
+
+    hasSelection =
+        selectedText.length > 0;
+
+
+    // Store the current selected rectangles
+    // so they can be printed after selection.
+    lastSelectedCharacters =
+        selectedCharacters;
+}
+
+
+// -------------------------
+// Selected character data
+// -------------------------
+
+let lastSelectedCharacters = [];
+
+
+// -------------------------
+// Debug: print all selected character rectangles
+// -------------------------
+
+function logSelectedCharacterRects() {
+
+    console.log(
+        `SELECTED CHARACTER RECTANGLES (${lastSelectedCharacters.length})`
+    );
+
+    const rows = lastSelectedCharacters.map(
+        (entry, index) => {
+
+            const rect = entry.rect;
+
+            return {
+                index,
+                character: entry.character,
+                left: rect.left,
+                top: rect.top,
+                right: rect.right,
+                bottom: rect.bottom,
+                width: rect.width,
+                height: rect.height
+            };
+        }
+    );
+
+    console.table(rows);
 }
 
 
@@ -447,13 +626,17 @@ function updateSelectedCharacters() {
 // -------------------------
 
 function reconstructText(characters) {
+
     if (characters.length === 0) {
         return "";
     }
 
+
     // Sort visually:
     // top → bottom, then left → right
+
     characters.sort((a, b) => {
+
         const verticalDifference =
             a.rect.top - b.rect.top;
 
@@ -464,16 +647,28 @@ function reconstructText(characters) {
         return a.rect.left - b.rect.left;
     });
 
+
     let result = "";
 
-    let currentRowTop = characters[0].rect.top;
+    let currentRowTop =
+        characters[0].rect.top;
 
-    let previousCharacter = characters[0];
+    let previousCharacter =
+        characters[0];
+
 
     result += previousCharacter.character;
 
-    for (let i = 1; i < characters.length; i++) {
-        const character = characters[i];
+
+    for (
+        let i = 1;
+        i < characters.length;
+        i++
+    ) {
+
+        const character =
+            characters[i];
+
 
         const rowDifference =
             Math.abs(
@@ -481,29 +676,40 @@ function reconstructText(characters) {
                 currentRowTop
             );
 
+
         // New visual row
         if (rowDifference > 2) {
+
             result += "\n";
-            currentRowTop = character.rect.top;
+
+            currentRowTop =
+                character.rect.top;
+
         } else {
-            // Same row: detect a visual gap between words/cells
+
+            // Same row: detect a visual gap
+            // between words/cells
+
             const horizontalGap =
                 character.rect.left -
                 previousCharacter.rect.right;
+
 
             if (horizontalGap > 5) {
                 result += " ";
             }
         }
 
+
         result += character.character;
 
-        previousCharacter = character;
+        previousCharacter =
+            character;
     }
+
 
     return result;
 }
-
 
 
 // -------------------------
@@ -511,12 +717,16 @@ function reconstructText(characters) {
 // -------------------------
 
 function clearSelection() {
+
     CSS.highlights.delete(
         "rectangle-selection"
     );
 
     selectedText = "";
+
     hasSelection = false;
+
+    lastSelectedCharacters = [];
 
     console.log(
         "Selection cleared"
@@ -529,6 +739,7 @@ function clearSelection() {
 // -------------------------
 
 function intersects(a, b) {
+
     return (
         a.left < b.right &&
         a.right > b.left &&
