@@ -98,6 +98,22 @@ document.addEventListener("keyup", (event) => {
 
 
 // -------------------------
+// Custom highlight
+// -------------------------
+
+const highlightStyle = document.createElement("style");
+
+highlightStyle.textContent = `
+    ::highlight(rectangle-selection) {
+        background-color: Highlight;
+        color: HighlightText;
+    }
+`;
+
+document.documentElement.appendChild(highlightStyle);
+
+
+// -------------------------
 // Find selected characters
 // -------------------------
 
@@ -114,6 +130,7 @@ function selectCharacters() {
         NodeFilter.SHOW_TEXT
     );
 
+    const highlight = new Highlight();
     const selectedCharacters = [];
 
     let node;
@@ -128,6 +145,10 @@ function selectCharacters() {
             const rect = range.getBoundingClientRect();
 
             if (intersects(rect, selectionRect)) {
+                // Add this character to the visual highlight
+                highlight.add(range);
+
+                // Also save it for reconstructing the text
                 selectedCharacters.push({
                     node: node,
                     index: i,
@@ -137,7 +158,13 @@ function selectCharacters() {
         }
     }
 
-    // Reconstruct text
+    // Tell the browser to render our highlight
+    CSS.highlights.set(
+        "rectangle-selection",
+        highlight
+    );
+
+    // Reconstruct selected text
     const selectedText = selectedCharacters
         .map(item => item.character)
         .join("");
