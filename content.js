@@ -8,25 +8,40 @@ let startY = 0;
 let endX = 0;
 let endY = 0;
 
-const eventKey = "Control";
 
-console.log("Rectangle select extension loaded.");
+// -------------------------
+// Selection UI
+// -------------------------
 
-document.addEventListener("keydown", (event) => {
-    if (event.key === eventKey && !selecting) {
-        selecting = true;
+const selectionBox = document.createElement("div");
 
-        startX = mouseX;
-        startY = mouseY;
+selectionBox.style.position = "fixed";
+selectionBox.style.pointerEvents = "none";
+selectionBox.style.zIndex = "2147483647";
+selectionBox.style.border = "2px solid #4285f4";
+selectionBox.style.background = "rgba(66, 133, 244, 0.15)";
+selectionBox.style.display = "none";
 
-        endX = mouseX;
-        endY = mouseY;
+document.documentElement.appendChild(selectionBox);
 
-        console.log("Selection started:", startX, startY);
-    }
-});
 
-// Always remember where the cursor is.
+function updateSelectionBox() {
+    const left = Math.min(startX, endX);
+    const top = Math.min(startY, endY);
+    const width = Math.abs(endX - startX);
+    const height = Math.abs(endY - startY);
+
+    selectionBox.style.left = `${left}px`;
+    selectionBox.style.top = `${top}px`;
+    selectionBox.style.width = `${width}px`;
+    selectionBox.style.height = `${height}px`;
+}
+
+
+// -------------------------
+// Mouse tracking
+// -------------------------
+
 document.addEventListener("mousemove", (event) => {
     mouseX = event.clientX;
     mouseY = event.clientY;
@@ -37,11 +52,43 @@ document.addEventListener("mousemove", (event) => {
 
     endX = mouseX;
     endY = mouseY;
+
+    updateSelectionBox();
 });
 
+
+// -------------------------
+// Start selection
+// -------------------------
+
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Shift" && !selecting) {
+        selecting = true;
+
+        startX = mouseX;
+        startY = mouseY;
+
+        endX = mouseX;
+        endY = mouseY;
+
+        selectionBox.style.display = "block";
+
+        updateSelectionBox();
+
+        console.log("Selection started:", startX, startY);
+    }
+});
+
+
+// -------------------------
+// Finish selection
+// -------------------------
+
 document.addEventListener("keyup", (event) => {
-    if (event.key === eventKey && selecting) {
+    if (event.key === "Shift" && selecting) {
         selecting = false;
+
+        selectionBox.style.display = "none";
 
         console.log("Selection finished:", endX, endY);
 
@@ -49,6 +96,10 @@ document.addEventListener("keyup", (event) => {
     }
 });
 
+
+// -------------------------
+// Find selected characters
+// -------------------------
 
 function selectCharacters() {
     const selectionRect = {
@@ -58,12 +109,12 @@ function selectCharacters() {
         bottom: Math.max(startY, endY)
     };
 
-    console.log("Selected rectangle:", selectionRect);
-
     const walker = document.createTreeWalker(
         document.body,
         NodeFilter.SHOW_TEXT
     );
+
+    const selectedCharacters = [];
 
     let node;
 
@@ -77,15 +128,28 @@ function selectCharacters() {
             const rect = range.getBoundingClientRect();
 
             if (intersects(rect, selectionRect)) {
-                console.log(
-                    "SELECTED:",
-                    JSON.stringify(node.textContent[i])
-                );
+                selectedCharacters.push({
+                    node: node,
+                    index: i,
+                    character: node.textContent[i]
+                });
             }
         }
     }
+
+    // Reconstruct text
+    const selectedText = selectedCharacters
+        .map(item => item.character)
+        .join("");
+
+    console.log("SELECTED TEXT:");
+    console.log(selectedText);
 }
 
+
+// -------------------------
+// Rectangle intersection
+// -------------------------
 
 function intersects(a, b) {
     return (
