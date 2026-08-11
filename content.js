@@ -715,63 +715,36 @@ function updateHighlight() {
 // Reconstruct selected text
 // -------------------------
 
-function reconstructText(
-    characters
-) {
+function reconstructText(characters) {
     if (characters.length === 0) {
         return "";
     }
 
-
     // Sort visually:
-    // top → bottom,
-    // then left → right
+    // top → bottom, then left → right
+    characters.sort((a, b) => {
+        const verticalDifference =
+            a.rect.top - b.rect.top;
 
-    characters.sort(
-        (a, b) => {
-            const verticalDifference =
-                a.rect.top -
-                b.rect.top;
-
-            if (
-                Math.abs(
-                    verticalDifference
-                ) > 2
-            ) {
-                return verticalDifference;
-            }
-
-            return (
-                a.rect.left -
-                b.rect.left
-            );
+        if (Math.abs(verticalDifference) > 2) {
+            return verticalDifference;
         }
-    );
 
+        return a.rect.left - b.rect.left;
+    });
 
     let result = "";
-
 
     let currentRowTop =
         characters[0].rect.top;
 
-
     let previousCharacter =
         characters[0];
 
+    result += previousCharacter.character;
 
-    result +=
-        previousCharacter.character;
-
-
-    for (
-        let i = 1;
-        i < characters.length;
-        i++
-    ) {
-        const character =
-            characters[i];
-
+    for (let i = 1; i < characters.length; i++) {
+        const character = characters[i];
 
         const rowDifference =
             Math.abs(
@@ -779,26 +752,30 @@ function reconstructText(
                 currentRowTop
             );
 
-
+        // New visual row
         if (rowDifference > 2) {
             result += "\n";
-
             currentRowTop =
                 character.rect.top;
+        } else {
+            // Same row: detect a visual gap between words/cells
+            const horizontalGap =
+                character.rect.left -
+                previousCharacter.rect.right;
+
+            if (horizontalGap > 5) {
+                result += " ";
+            }
         }
 
+        result += character.character;
 
-        result +=
-            character.character;
-
-
-        previousCharacter =
-            character;
+        previousCharacter = character;
     }
-
 
     return result;
 }
+
 
 
 // -------------------------
