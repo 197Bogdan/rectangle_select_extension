@@ -12,6 +12,42 @@ let selectedText = "";
 let hasSelection = false;
 
 // -------------------------
+// Cached text nodes
+// -------------------------
+
+let textNodes = [];
+
+function scanTextNodes() {
+    const start = performance.now();
+
+    textNodes = [];
+
+    const walker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT
+    );
+
+    let node;
+
+    while (node = walker.nextNode()) {
+        textNodes.push(node);
+    }
+
+    const elapsed = performance.now() - start;
+
+    console.log(
+        "Scanned",
+        textNodes.length,
+        "text nodes in",
+        elapsed.toFixed(2),
+        "ms"
+    );
+}
+
+// Scan the page once when the extension starts
+scanTextNodes();
+
+// -------------------------
 // Selection UI
 // -------------------------
 
@@ -182,11 +218,6 @@ function updateHighlight() {
         bottom: Math.max(startY, endY)
     };
 
-    const walker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_TEXT
-    );
-
     const highlight = new Highlight();
     const selectedCharacters = [];
 
@@ -199,9 +230,8 @@ function updateHighlight() {
     let characterCount = 0;
     let selectedCount = 0;
 
-    let node;
-
-    while (node = walker.nextNode()) {
+    // Use cached text nodes instead of TreeWalker
+    for (const node of textNodes) {
         for (let i = 0; i < node.length; i++) {
             characterCount++;
 
@@ -212,7 +242,6 @@ function updateHighlight() {
 
             createRangeTime += performance.now() - start;
 
-
             // setStart + setEnd
             start = performance.now();
 
@@ -221,14 +250,12 @@ function updateHighlight() {
 
             setRangeTime += performance.now() - start;
 
-
             // getBoundingClientRect
             start = performance.now();
 
             const rect = range.getBoundingClientRect();
 
             geometryTime += performance.now() - start;
-
 
             // intersection test
             start = performance.now();
@@ -239,7 +266,6 @@ function updateHighlight() {
             );
 
             intersectionTime += performance.now() - start;
-
 
             if (isSelected) {
                 // Highlight.add
@@ -270,7 +296,6 @@ function updateHighlight() {
     const highlightTime =
         performance.now() - highlightStart;
 
-
     // Reconstruct text
     const reconstructStart = performance.now();
 
@@ -279,7 +304,6 @@ function updateHighlight() {
 
     const reconstructTime =
         performance.now() - reconstructStart;
-
 
     // -------------------------
     // Timing results
@@ -290,7 +314,11 @@ function updateHighlight() {
 
     console.log("----- updateHighlight timing -----");
 
-    console.log("Total:", totalTime.toFixed(2), "ms");
+    console.log(
+        "Total:",
+        totalTime.toFixed(2),
+        "ms"
+    );
 
     console.log(
         "Characters processed:",
