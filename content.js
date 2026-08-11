@@ -221,26 +221,74 @@ function updateHighlight() {
     const highlight = new Highlight();
     const selectedCharacters = [];
 
+    let nodeRectTime = 0;
     let createRangeTime = 0;
     let setRangeTime = 0;
     let geometryTime = 0;
     let intersectionTime = 0;
     let highlightAddTime = 0;
 
+    let nodeCount = 0;
+    let visibleNodeCount = 0;
     let characterCount = 0;
     let selectedCount = 0;
 
-    // Use cached text nodes instead of TreeWalker
+    // -------------------------
+    // Viewport
+    // -------------------------
+
+    const viewport = {
+        left: 0,
+        top: 0,
+        right: window.innerWidth,
+        bottom: window.innerHeight
+    };
+
+    // -------------------------
+    // Process cached text nodes
+    // -------------------------
+
     for (const node of textNodes) {
+        nodeCount++;
+
+        // -------------------------
+        // Get text node bounds
+        // -------------------------
+
+        let start = performance.now();
+
+        const nodeRange = document.createRange();
+        nodeRange.selectNodeContents(node);
+
+        const nodeRect =
+            nodeRange.getBoundingClientRect();
+
+        nodeRectTime += performance.now() - start;
+
+        // -------------------------
+        // Skip nodes outside viewport
+        // -------------------------
+
+        if (!intersects(nodeRect, viewport)) {
+            continue;
+        }
+
+        visibleNodeCount++;
+
+        // -------------------------
+        // Process characters
+        // -------------------------
+
         for (let i = 0; i < node.length; i++) {
             characterCount++;
 
             // createRange
-            let start = performance.now();
+            start = performance.now();
 
             const range = document.createRange();
 
-            createRangeTime += performance.now() - start;
+            createRangeTime +=
+                performance.now() - start;
 
             // setStart + setEnd
             start = performance.now();
@@ -248,24 +296,29 @@ function updateHighlight() {
             range.setStart(node, i);
             range.setEnd(node, i + 1);
 
-            setRangeTime += performance.now() - start;
+            setRangeTime +=
+                performance.now() - start;
 
             // getBoundingClientRect
             start = performance.now();
 
-            const rect = range.getBoundingClientRect();
+            const rect =
+                range.getBoundingClientRect();
 
-            geometryTime += performance.now() - start;
+            geometryTime +=
+                performance.now() - start;
 
             // intersection test
             start = performance.now();
 
-            const isSelected = intersects(
-                rect,
-                selectionRect
-            );
+            const isSelected =
+                intersects(
+                    rect,
+                    selectionRect
+                );
 
-            intersectionTime += performance.now() - start;
+            intersectionTime +=
+                performance.now() - start;
 
             if (isSelected) {
                 // Highlight.add
@@ -273,7 +326,8 @@ function updateHighlight() {
 
                 highlight.add(range);
 
-                highlightAddTime += performance.now() - start;
+                highlightAddTime +=
+                    performance.now() - start;
 
                 selectedCharacters.push({
                     character: node.textContent[i],
@@ -285,8 +339,12 @@ function updateHighlight() {
         }
     }
 
+    // -------------------------
     // Apply highlight
-    const highlightStart = performance.now();
+    // -------------------------
+
+    const highlightStart =
+        performance.now();
 
     CSS.highlights.set(
         "rectangle-selection",
@@ -294,30 +352,54 @@ function updateHighlight() {
     );
 
     const highlightTime =
-        performance.now() - highlightStart;
+        performance.now() -
+        highlightStart;
 
+    // -------------------------
     // Reconstruct text
-    const reconstructStart = performance.now();
+    // -------------------------
 
-    selectedText = reconstructText(selectedCharacters);
-    hasSelection = selectedText.length > 0;
+    const reconstructStart =
+        performance.now();
+
+    selectedText =
+        reconstructText(
+            selectedCharacters
+        );
+
+    hasSelection =
+        selectedText.length > 0;
 
     const reconstructTime =
-        performance.now() - reconstructStart;
+        performance.now() -
+        reconstructStart;
 
     // -------------------------
     // Timing results
     // -------------------------
 
     const totalTime =
-        performance.now() - totalStart;
+        performance.now() -
+        totalStart;
 
-    console.log("----- updateHighlight timing -----");
+    console.log(
+        "----- updateHighlight timing -----"
+    );
 
     console.log(
         "Total:",
         totalTime.toFixed(2),
         "ms"
+    );
+
+    console.log(
+        "Text nodes:",
+        nodeCount
+    );
+
+    console.log(
+        "Visible text nodes:",
+        visibleNodeCount
     );
 
     console.log(
@@ -328,6 +410,12 @@ function updateHighlight() {
     console.log(
         "Characters selected:",
         selectedCount
+    );
+
+    console.log(
+        "Node getBoundingClientRect:",
+        nodeRectTime.toFixed(2),
+        "ms"
     );
 
     console.log(
@@ -343,7 +431,7 @@ function updateHighlight() {
     );
 
     console.log(
-        "getBoundingClientRect:",
+        "Character getBoundingClientRect:",
         geometryTime.toFixed(2),
         "ms"
     );
@@ -376,6 +464,7 @@ function updateHighlight() {
         "Unaccounted:",
         (
             totalTime -
+            nodeRectTime -
             createRangeTime -
             setRangeTime -
             geometryTime -
@@ -387,7 +476,9 @@ function updateHighlight() {
         "ms"
     );
 
-    console.log("----------------------------------");
+    console.log(
+        "----------------------------------"
+    );
 }
 
 // -------------------------
