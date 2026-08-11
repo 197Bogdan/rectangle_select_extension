@@ -8,6 +8,9 @@ let startY = 0;
 let endX = 0;
 let endY = 0;
 
+let selectedText = "";
+let hasSelection = false;
+
 
 // -------------------------
 // Selection UI
@@ -39,7 +42,7 @@ function updateSelectionBox() {
 
 
 // -------------------------
-// Mouse tracking
+// Dynamically update selection box
 // -------------------------
 
 document.addEventListener("mousemove", (event) => {
@@ -57,6 +60,20 @@ document.addEventListener("mousemove", (event) => {
     updateHighlight();
 });
 
+// -------------------------
+// Clear selection on click
+// -------------------------
+document.addEventListener("mousedown", (event) => {
+    if (selecting) {
+        return;
+    }
+
+    if (!hasSelection) {
+        return;
+    }
+
+    clearSelection();
+});
 
 // -------------------------
 // Start selection
@@ -65,6 +82,9 @@ document.addEventListener("mousemove", (event) => {
 document.addEventListener("keydown", (event) => {
     if (event.key === "Shift" && !selecting) {
         selecting = true;
+
+        // Clear normal browser text selection
+        window.getSelection().removeAllRanges();
 
         startX = mouseX;
         startY = mouseY;
@@ -116,6 +136,35 @@ highlightStyle.textContent = `
 
 document.documentElement.appendChild(highlightStyle);
 
+// -------------------------
+// Copy selected text
+// -------------------------
+
+document.addEventListener("keydown", async (event) => {
+    if (!hasSelection) {
+        return;
+    }
+
+    const isCopy =
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "c";
+
+    if (!isCopy) {
+        return;
+    }
+
+    event.preventDefault();
+
+    try {
+        await navigator.clipboard.writeText(selectedText);
+
+        console.log("Copied:");
+        console.log(selectedText);
+    } catch (error) {
+        console.error("Failed to copy:", error);
+    }
+});
+
 
 // -------------------------
 // Find selected characters
@@ -158,14 +207,20 @@ function updateHighlight() {
         }
     }
 
-    CSS.highlights.set(
-        "rectangle-selection",
-        highlight
-    );
-
-    const selectedText = selectedCharacters.join("");
+    CSS.highlights.set("rectangle-selection",highlight);
+    selectedText = selectedCharacters.join("");
+    hasSelection = selectedText.length > 0;
 
     console.log(selectedText);
+}
+
+function clearSelection() {
+    CSS.highlights.delete("rectangle-selection");
+
+    selectedText = "";
+    hasSelection = false;
+
+    console.log("Selection cleared");
 }
 
 
