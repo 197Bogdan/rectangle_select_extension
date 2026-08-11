@@ -54,6 +54,7 @@ document.addEventListener("mousemove", (event) => {
     endY = mouseY;
 
     updateSelectionBox();
+    updateHighlight();
 });
 
 
@@ -90,9 +91,12 @@ document.addEventListener("keyup", (event) => {
 
         selectionBox.style.display = "none";
 
-        console.log("Selection finished:", endX, endY);
-
-        selectCharacters();
+        console.log("Selection finished:", {
+            startX,
+            startY,
+            endX,
+            endY
+        });
     }
 });
 
@@ -117,7 +121,7 @@ document.documentElement.appendChild(highlightStyle);
 // Find selected characters
 // -------------------------
 
-function selectCharacters() {
+function updateHighlight() {
     const selectionRect = {
         left: Math.min(startX, endX),
         right: Math.max(startX, endX),
@@ -145,31 +149,22 @@ function selectCharacters() {
             const rect = range.getBoundingClientRect();
 
             if (intersects(rect, selectionRect)) {
-                // Add this character to the visual highlight
                 highlight.add(range);
 
-                // Also save it for reconstructing the text
-                selectedCharacters.push({
-                    node: node,
-                    index: i,
-                    character: node.textContent[i]
-                });
+                selectedCharacters.push(
+                    node.textContent[i]
+                );
             }
         }
     }
 
-    // Tell the browser to render our highlight
     CSS.highlights.set(
         "rectangle-selection",
         highlight
     );
 
-    // Reconstruct selected text
-    const selectedText = selectedCharacters
-        .map(item => item.character)
-        .join("");
+    const selectedText = selectedCharacters.join("");
 
-    console.log("SELECTED TEXT:");
     console.log(selectedText);
 }
 
