@@ -1,0 +1,26 @@
+body {
+    margin: 0;
+    padding: 10px;
+    width: 180px;
+    font-family: sans-serif;
+}
+
+button {
+    width: 100%;
+    padding: 10px;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.instructions {
+    margin-top: 12px;
+    color: #666;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.instructions p {
+    margin: 5px 0;
+}

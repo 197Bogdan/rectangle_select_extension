@@ -1,1 +1,0 @@
-console.log("Hello Rectangle Select Extension!");

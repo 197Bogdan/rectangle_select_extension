@@ -1,3 +1,27 @@
+let enabled = false;
+
+browser.storage.local.get("enabled").then((result) => {
+    enabled = result.enabled ?? false;
+
+    if (!enabled) {
+        clearSelection();
+    }
+});
+
+browser.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes.enabled) {
+        return;
+    }
+
+    enabled = changes.enabled.newValue;
+
+    if (!enabled) {
+        selecting = false;
+        selectionBox.style.display = "none";
+        clearSelection();
+    }
+});
+
 let selecting = false;
 
 let selectedText = "";
@@ -154,6 +178,10 @@ function updateSelectionBox() {
 document.addEventListener(
     "mousemove",
     (event) => {
+        if ( !enabled ) {
+            return;
+        }
+
         mouseX = event.clientX;
         mouseY = event.clientY;
 
@@ -177,6 +205,10 @@ document.addEventListener(
 document.addEventListener(
     "mousedown",
     (event) => {
+        if (!enabled) {
+            return;
+        }
+
         if (selecting) {
             return;
         }
@@ -197,6 +229,10 @@ document.addEventListener(
 document.addEventListener(
     "keydown",
     (event) => {
+        if ( !enabled ) {
+            return;
+        }
+
         if ( event.key === "Shift" && !selecting ) {
             selecting = true;
 
@@ -214,11 +250,11 @@ document.addEventListener(
 
             updateSelectionBox();
 
-            // console.log(
-            //     "Selection started:",
-            //     startX,
-            //     startY
-            // );
+            console.log(
+                "Selection started:",
+                startX,
+                startY
+            );
         }
     }
 );
@@ -231,20 +267,24 @@ document.addEventListener(
 document.addEventListener(
     "keyup",
     (event) => {
+        if ( !enabled ) {
+            return;
+        }
+
         if ( event.key === "Shift" && selecting ) {
             selecting = false;
 
             // Hide selection box
             selectionBox.style.display = "none";
 
-            // console.log( "Selection finished:",
-            //     {
-            //         startX,
-            //         startY,
-            //         endX,
-            //         endY
-            //     }
-            // );
+            console.log( "Selection finished:",
+                {
+                    startX,
+                    startY,
+                    endX,
+                    endY
+                }
+            );
         }
     }
 );
@@ -275,6 +315,10 @@ document.documentElement.appendChild(
 document.addEventListener(
     "keydown",
     async (event) => {
+        if ( !enabled ) {
+            return;
+        }
+
         if (!hasSelection) {
             return;
         }
@@ -301,8 +345,8 @@ document.addEventListener(
                 selectedText
             );
 
-            // console.log("Copied:");
-            // console.log(selectedText);
+            console.log("Copied:");
+            console.log(selectedText);
         } catch (error) {
             console.error(
                 "Failed to copy selection to clipboard:",
@@ -474,9 +518,9 @@ function clearSelection() {
     selectedText = "";
     hasSelection = false;
 
-    // console.log(
-    //     "Selection cleared"
-    // );
+    console.log(
+        "Selection cleared"
+    );
 }
 
 
