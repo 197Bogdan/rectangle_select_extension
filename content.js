@@ -38,6 +38,8 @@ function debugTable(rows) {
 }
 
 let selecting = false;
+let rPressed = false;
+let leftMousePressed = false;
 
 let selectedText = "";
 let hasSelection = false;
@@ -707,6 +709,8 @@ document.addEventListener(
             return;
         }
 
+        event.preventDefault();
+
         // Convert mouse coordinates to
         // document coordinates.
         endX =
@@ -728,22 +732,49 @@ document.addEventListener(
 // ============================================================
 
 document.addEventListener(
-    "mousedown",
+"mousedown",
+(event) => {
+
+    if (!enabled) {
+        return;
+    }
+
+    // Left mouse button
+    if (event.button === 0) {
+
+        leftMousePressed = true;
+
+        // If R is already being held,
+        // start rectangle selection.
+        if (rPressed && !selecting) {
+            event.preventDefault();
+            startSelection();
+            return;
+        }
+    }
+
+    // If we're not starting a selection,
+    // clicking normally clears the previous one.
+    if (!selecting && hasSelection) {
+        clearSelection();
+    }
+}
+);
+
+document.addEventListener(
+    "mouseup",
     (event) => {
 
-        if (!enabled) {
+        if (event.button !== 0) {
             return;
         }
 
+        leftMousePressed = false;
+
+        // Releasing left click ends selection.
         if (selecting) {
-            return;
+            finishSelection();
         }
-
-        if (!hasSelection) {
-            return;
-        }
-
-        clearSelection();
     }
 );
 
@@ -760,48 +791,22 @@ document.addEventListener(
         }
 
         if (
-            event.key.toLowerCase() === "r" &&
-            !selecting
+            event.key.toLowerCase() === "r"
         ) {
 
-            selecting = true;
+            rPressed = true;
 
-            // Make sure we are working with
-            // the current DOM.
-            ensureTextNodeCache();
-
-            // Clear normal browser text selection.
-            window.getSelection()
-                .removeAllRanges();
-
-            // Convert current mouse position
-            // from viewport → document coords.
-            startX =
-                mouseX +
-                window.scrollX;
-
-            startY =
-                mouseY +
-                window.scrollY;
-
-            endX = startX;
-            endY = startY;
-
-            // Show selection box.
-            selectionBox.style.display =
-                "block";
-
-            updateSelectionBox();
-
-            debugLog(
-                "Selection started:",
-                startX,
-                startY
-            );
+            // If left click is already held,
+            // start rectangle selection.
+            if (
+                leftMousePressed &&
+                !selecting
+            ) {
+                startSelection();
+            }
         }
     }
 );
-
 // ============================================================
 // FINISH SELECTION
 // ============================================================
@@ -815,46 +820,18 @@ document.addEventListener(
         }
 
         if (
-            event.key.toLowerCase() === "r" &&
-            selecting
+            event.key.toLowerCase() === "r"
         ) {
 
-            selecting = false;
+            rPressed = false;
 
-            // Hide selection box.
-            selectionBox.style.display =
-                "none";
-
-            // Make sure the latest selection
-            // has been calculated while the
-            // append-only cache still exists.
-            updateSelectedCharacters();
-
-            debugLog(
-                "Selection finished:",
-                {
-                    startX,
-                    startY,
-                    endX,
-                    endY
-                }
-            );
-
-            // =================================================
-            // IMPORTANT:
-            //
-            // The selection is now finished.
-            //
-            // Discard all geometry accumulated while scrolling
-            // and let the next selection start with a fresh,
-            // bounded cache.
-            // =================================================
-
-            resetTextNodeCache();
+            // Releasing R ends selection.
+            if (selecting) {
+                finishSelection();
+            }
         }
     }
 );
-
 // ============================================================
 // CUSTOM HIGHLIGHT
 // ============================================================
@@ -929,6 +906,88 @@ document.addEventListener(
         }
     }
 );
+
+// ============================================================
+// START SELECTION
+// ============================================================
+
+function startSelection() {
+
+    if (selecting) {
+        return;
+    }
+
+    selecting = true;
+
+    // Make sure we are working with
+    // the current DOM.
+    ensureTextNodeCache();
+
+    // Clear normal browser text selection.
+    window.getSelection()
+        .removeAllRanges();
+
+    // Convert current mouse position
+    // from viewport → document coords.
+    startX =
+        mouseX +
+        window.scrollX;
+
+    startY =
+        mouseY +
+        window.scrollY;
+
+    endX = startX;
+    endY = startY;
+
+    // Show selection box.
+    selectionBox.style.display =
+        "block";
+
+    updateSelectionBox();
+
+    debugLog(
+        "Selection started:",
+        startX,
+        startY
+    );
+}
+
+
+// ============================================================
+// FINISH SELECTION
+// ============================================================
+
+function finishSelection() {
+
+    if (!selecting) {
+        return;
+    }
+
+    selecting = false;
+
+    // Hide selection box.
+    selectionBox.style.display =
+        "none";
+
+    // Make sure the latest selection
+    // is calculated while the
+    // append-only cache still exists.
+    updateSelectedCharacters();
+
+    debugLog(
+        "Selection finished:",
+        {
+            startX,
+            startY,
+            endX,
+            endY
+        }
+    );
+
+    // Discard accumulated cache.
+    resetTextNodeCache();
+}
 
 // ============================================================
 // UPDATE SELECTED CHARACTERS

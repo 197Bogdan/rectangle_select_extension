@@ -3,8 +3,10 @@ const status = document.getElementById("status");
 
 function updateUI(enabled) {
     status.textContent = enabled ? "ON" : "OFF";
-    toggle.style.background = enabled ? "#4285f4" : "#eee";
-    toggle.style.color = enabled ? "white" : "black";
+    toggle.style.background =
+        enabled ? "#4285f4" : "#eee";
+    toggle.style.color =
+        enabled ? "white" : "black";
 }
 
 // Initial state
@@ -23,8 +25,13 @@ browser.storage.onChanged.addListener((changes, areaName) => {
 
 // Toggle from popup button
 toggle.addEventListener("click", async () => {
-    const result = await browser.storage.local.get("enabled");
-    const enabled = !(result.enabled ?? false);
+    const result =
+        await browser.storage.local.get("enabled");
 
-    await browser.storage.local.set({ enabled });
+    const enabled =
+        !(result.enabled ?? false);
+
+    await browser.storage.local.set({
+        enabled
+    });
 });
