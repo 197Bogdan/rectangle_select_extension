@@ -3,6 +3,27 @@ import {
     startAutoScroll,
     stopAutoScroll
 } from "./autoScroll.js";
+import {
+    intersects,
+    contains
+} from "./geometry.js";
+import {
+    debugLog,
+    debugTable,
+    logSelectedCharacterRects
+} from "./debug.js";
+import { reconstructText } from "./textReconstruction.js";
+import {
+    ensureTextNodeCache,
+    resetTextNodeCache,
+    invalidateVisibleTextNodeRects,
+    getVisibleTextNodeRects
+} from "./textCache.js";
+import {
+    updateSelectionBox,
+    showSelectionBox,
+    hideSelectionBox
+} from "./selectionBox.js";
 
 browser.storage.local.get("enabled").then((result) => {
     state.enabled = result.enabled ?? false;
@@ -22,461 +43,12 @@ browser.storage.onChanged.addListener((changes, area) => {
     if (!state.enabled) {
         state.selecting = false;
         stopAutoScroll();
-        selectionBox.style.display = "none";
+        hideSelectionBox();
         clearSelection();
         resetTextNodeCache();
     }
 });
 
-const DEBUG = false;
-
-function debugLog(...args) {
-    if (DEBUG) {
-        console.log(...args);
-    }
-}
-
-function debugTable(rows) {
-    if (DEBUG) {
-        console.table(rows);
-    }
-}
-
-
-
-// ============================================================
-// TEXT GEOMETRY CACHE
-// ============================================================
-//
-// Text rectangles are stored in DOCUMENT coordinates.
-//
-// Normally the cache covers the viewport plus a buffer.
-//
-// IMPORTANT:
-//
-// While selecting, the cache is APPEND-ONLY.
-//
-// This means if the user scrolls:
-//
-//     old cached nodes
-//           +
-//     newly discovered nodes
-//
-// are all kept.
-//
-// The cache is reset when the selection finishes.
-// ============================================================
-
-let visibleTextNodeRects = [];
-
-let visibleTextNodeRectsValid = false;
-
-// Keep track of nodes already in the cache so that when we
-// expand the cache we don't add the same node repeatedly.
-const cachedTextNodes = new Set();
-
-// How far beyond the viewport we cache.
-// 0.5 viewport widths/heights on each side.
-const CACHE_BUFFER_MULTIPLIER = 0.5;
-
-// Document-coordinate bounds of the current cache.
-let cacheRegion = null;
-
-// -------------------------
-// Get all text nodes in the page
-// -------------------------
-
-function getTextNodes() {
-    const textNodes = [];
-
-    const walker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_TEXT
-    );
-
-    let node;
-
-    while (node = walker.nextNode()) {
-        textNodes.push(node);
-    }
-
-    return textNodes;
-}
-
-// -------------------------
-// Get the document-coordinate
-// cache region around the viewport
-// -------------------------
-
-function getCacheRegion() {
-
-    const bufferY =
-        window.innerHeight *
-        CACHE_BUFFER_MULTIPLIER;
-
-    const bufferX =
-        window.innerWidth *
-        CACHE_BUFFER_MULTIPLIER;
-
-    const documentWidth =
-        Math.max(
-            document.documentElement.scrollWidth,
-            document.body?.scrollWidth ?? 0
-        );
-
-    const documentHeight =
-        Math.max(
-            document.documentElement.scrollHeight,
-            document.body?.scrollHeight ?? 0
-        );
-
-    return {
-        left: Math.max(
-            0,
-            window.scrollX - bufferX
-        ),
-
-        top: Math.max(
-            0,
-            window.scrollY - bufferY
-        ),
-
-        right: Math.min(
-            documentWidth,
-            window.scrollX +
-                window.innerWidth +
-                bufferX
-        ),
-
-        bottom: Math.min(
-            documentHeight,
-            window.scrollY +
-                window.innerHeight +
-                bufferY
-        )
-    };
-}
-
-// -------------------------
-// Check whether a rectangle
-// is inside/intersects the cache
-// -------------------------
-
-function isInsideCache(rect, region) {
-    return intersects(rect, region);
-}
-
-// ============================================================
-// ADD TEXT NODES TO CACHE
-// ============================================================
-
-function addTextNodesToCache(region) {
-
-    const textNodes = getTextNodes();
-
-    let addedCount = 0;
-
-    for (const node of textNodes) {
-
-        // Ignore detached nodes.
-        if (!node.isConnected) {
-            continue;
-        }
-
-        // Don't process a node that is already cached.
-        if (cachedTextNodes.has(node)) {
-            continue;
-        }
-
-        // -------------------------
-        // Get text node bounds
-        // -------------------------
-
-        const range =
-            document.createRange();
-
-        range.selectNodeContents(node);
-
-        const viewportRect =
-            range.getBoundingClientRect();
-
-        // -------------------------
-        // Ignore invisible nodes
-        // -------------------------
-
-        if (
-            viewportRect.width === 0 &&
-            viewportRect.height === 0
-        ) {
-            continue;
-        }
-
-        // -------------------------
-        // Convert viewport coordinates
-        // to document coordinates.
-        // -------------------------
-
-        const documentRect = {
-            left:
-                viewportRect.left +
-                window.scrollX,
-
-            top:
-                viewportRect.top +
-                window.scrollY,
-
-            right:
-                viewportRect.right +
-                window.scrollX,
-
-            bottom:
-                viewportRect.bottom +
-                window.scrollY,
-
-            width:
-                viewportRect.width,
-
-            height:
-                viewportRect.height
-        };
-
-        // -------------------------
-        // Only cache nodes inside
-        // the requested region.
-        // -------------------------
-
-        if (
-            !isInsideCache(
-                documentRect,
-                region
-            )
-        ) {
-            continue;
-        }
-
-        visibleTextNodeRects.push({
-            node,
-            rect: documentRect
-        });
-
-        cachedTextNodes.add(node);
-
-        addedCount++;
-    }
-
-    return addedCount;
-}
-
-// ============================================================
-// RESET TEXT NODE CACHE
-// ============================================================
-
-function resetTextNodeCache() {
-
-    visibleTextNodeRects = [];
-
-    cachedTextNodes.clear();
-
-    visibleTextNodeRectsValid = false;
-
-    cacheRegion = null;
-
-    debugLog("Text cache reset");
-}
-
-// ============================================================
-// REBUILD THE TEXT-NODE CACHE
-// ============================================================
-
-function rebuildVisibleTextNodeRects() {
-
-    visibleTextNodeRects = [];
-
-    cachedTextNodes.clear();
-
-    cacheRegion = getCacheRegion();
-
-    const addedCount =
-        addTextNodesToCache(cacheRegion);
-
-    visibleTextNodeRectsValid = true;
-
-    debugLog(
-        `Text cache rebuilt: ${addedCount} nodes`
-    );
-}
-
-// ============================================================
-// EXPAND CACHE
-// ============================================================
-
-function expandTextNodeCache() {
-
-    const currentRegion =
-        getCacheRegion();
-
-    // If there isn't an existing cache yet,
-    // initialize it.
-    if (!cacheRegion) {
-
-        cacheRegion = currentRegion;
-
-        const addedCount =
-            addTextNodesToCache(cacheRegion);
-
-        visibleTextNodeRectsValid = true;
-
-        debugLog(
-            `Text cache initialized: ${addedCount} nodes`
-        );
-
-        return;
-    }
-
-    // -------------------------
-    // Expand the existing region.
-    // -------------------------
-
-    const expandedRegion = {
-
-        left: Math.min(
-            cacheRegion.left,
-            currentRegion.left
-        ),
-
-        top: Math.min(
-            cacheRegion.top,
-            currentRegion.top
-        ),
-
-        right: Math.max(
-            cacheRegion.right,
-            currentRegion.right
-        ),
-
-        bottom: Math.max(
-            cacheRegion.bottom,
-            currentRegion.bottom
-        )
-    };
-
-    cacheRegion = expandedRegion;
-
-    const addedCount =
-        addTextNodesToCache(cacheRegion);
-
-    visibleTextNodeRectsValid = true;
-
-    if (addedCount > 0) {
-        debugLog(
-            `Text cache expanded: +${addedCount} nodes, total ${visibleTextNodeRects.length}`
-        );
-    }
-}
-
-// ============================================================
-// DETERMINE WHETHER WE NEED TO UPDATE CACHE
-// ============================================================
-
-function ensureTextNodeCache() {
-
-    // No cache yet.
-    if (
-        !visibleTextNodeRectsValid ||
-        !cacheRegion
-    ) {
-
-        if (state.selecting) {
-            expandTextNodeCache();
-        } else {
-            rebuildVisibleTextNodeRects();
-        }
-
-        return;
-    }
-
-    const currentRegion =
-        getCacheRegion();
-
-    const outsideCache =
-        currentRegion.top < cacheRegion.top ||
-        currentRegion.bottom > cacheRegion.bottom ||
-        currentRegion.left < cacheRegion.left ||
-        currentRegion.right > cacheRegion.right;
-
-    if (!outsideCache) {
-        return;
-    }
-
-    // During selection we never rebuild.
-    // We expand the existing cache instead.
-    if (state.selecting) {
-        expandTextNodeCache();
-    } else {
-        rebuildVisibleTextNodeRects();
-    }
-}
-
-// -------------------------
-// Debug: print cached
-// text-node rectangles
-// -------------------------
-
-function logVisibleTextNodeRects() {
-
-    debugLog(
-        `CACHED TEXT NODE RECTANGLES (${visibleTextNodeRects.length})`
-    );
-
-    const rows =
-        visibleTextNodeRects.map(
-            (entry, index) => {
-
-                const rect = entry.rect;
-
-                return {
-                    index,
-
-                    text:
-                        entry.node.textContent,
-
-                    left: rect.left,
-                    top: rect.top,
-
-                    right: rect.right,
-                    bottom: rect.bottom,
-
-                    width: rect.width,
-                    height: rect.height
-                };
-            }
-        );
-
-    debugTable(rows);
-}
-
-// -------------------------
-// Invalidate text geometry
-//
-// Called when DOM changes.
-//
-// IMPORTANT:
-// While selecting, we DO NOT invalidate
-// the existing cache.
-// -------------------------
-
-function invalidateVisibleTextNodeRects() {
-
-    if (state.selecting) {
-        return;
-    }
-
-    visibleTextNodeRectsValid = false;
-
-    cacheRegion = null;
-
-    cachedTextNodes.clear();
-}
 
 // -------------------------
 // Scroll
@@ -554,66 +126,6 @@ observer.observe(
         characterData: true
     }
 );
-
-// ============================================================
-// SELECTION UI
-// ============================================================
-
-const selectionBox =
-    document.createElement("div");
-
-selectionBox.style.position = "fixed";
-selectionBox.style.pointerEvents = "none";
-selectionBox.style.zIndex = "2147483647";
-
-selectionBox.style.border =
-    "2px solid #4285f4";
-
-selectionBox.style.background =
-    "rgba(66, 133, 244, 0.15)";
-
-selectionBox.style.display =
-    "none";
-
-document.documentElement.appendChild(
-    selectionBox
-);
-
-// -------------------------
-// Update selection box
-//
-// start/end are DOCUMENT coordinates.
-// CSS position is VIEWPORT coordinates.
-// -------------------------
-
-function updateSelectionBox() {
-
-    const left =
-        Math.min(state.startX, state.endX) -
-        window.scrollX;
-
-    const top =
-        Math.min(state.startY, state.endY) -
-        window.scrollY;
-
-    const width =
-        Math.abs(state.endX - state.startX);
-
-    const height =
-        Math.abs(state.endY - state.startY);
-
-    selectionBox.style.left =
-        `${left}px`;
-
-    selectionBox.style.top =
-        `${top}px`;
-
-    selectionBox.style.width =
-        `${width}px`;
-
-    selectionBox.style.height =
-        `${height}px`;
-}
 
 // ============================================================
 // MOUSE
@@ -868,10 +380,7 @@ function startSelection() {
     state.endY = state.startY;
 
     // Show selection box.
-    selectionBox.style.display =
-        "block";
-
-    updateSelectionBox();
+    showSelectionBox();
 
     startAutoScroll();
 
@@ -897,8 +406,7 @@ function finishSelection() {
     state.selecting = false;
 
     // Hide selection box.
-    selectionBox.style.display =
-        "none";
+    hideSelectionBox();
 
     // Make sure the latest selection
     // is calculated while the
@@ -965,7 +473,7 @@ function updateSelectedCharacters() {
 
     for (
         const entry
-        of visibleTextNodeRects
+        of getVisibleTextNodeRects()
     ) {
 
         const node =
@@ -1211,149 +719,6 @@ function scheduleSelectionUpdate() {
 
 let lastSelectedCharacters = [];
 
-// -------------------------
-// Debug: selected rectangles
-// -------------------------
-
-function logSelectedCharacterRects() {
-
-    debugLog(
-        `SELECTED CHARACTER RECTANGLES (${lastSelectedCharacters.length})`
-    );
-
-    const rows =
-        lastSelectedCharacters.map(
-            (entry, index) => {
-
-                const rect =
-                    entry.rect;
-
-                return {
-                    index,
-
-                    character:
-                        entry.character,
-
-                    left: rect.left,
-                    top: rect.top,
-
-                    right: rect.right,
-                    bottom: rect.bottom,
-
-                    width: rect.width,
-                    height: rect.height
-                };
-            }
-        );
-
-    debugTable(rows);
-}
-
-// ============================================================
-// RECONSTRUCT SELECTED TEXT
-// ============================================================
-
-function reconstructText(
-    characters
-) {
-
-    if (characters.length === 0) {
-        return "";
-    }
-
-    // -------------------------
-    // Sort visually:
-    // top → bottom
-    // left → right
-    // -------------------------
-
-    characters.sort(
-        (a, b) => {
-
-            const verticalDifference =
-                a.rect.top -
-                b.rect.top;
-
-            if (
-                Math.abs(
-                    verticalDifference
-                ) > 2
-            ) {
-
-                return verticalDifference;
-            }
-
-            return (
-                a.rect.left -
-                b.rect.left
-            );
-        }
-    );
-
-    let result = "";
-
-    let currentRowTop =
-        characters[0].rect.top;
-
-    let previousCharacter =
-        characters[0];
-
-    result +=
-        previousCharacter.character;
-
-    for (
-        let i = 1;
-        i < characters.length;
-        i++
-    ) {
-
-        const character =
-            characters[i];
-
-        const rowDifference =
-            Math.abs(
-                character.rect.top -
-                currentRowTop
-            );
-
-        // -------------------------
-        // New visual row
-        // -------------------------
-
-        if (rowDifference > 2) {
-
-            result += "\n";
-
-            currentRowTop =
-                character.rect.top;
-
-        } else {
-
-            // -------------------------
-            // Same row:
-            // detect visual gap
-            // -------------------------
-
-            const horizontalGap =
-                character.rect.left -
-                previousCharacter.rect.right;
-
-            if (
-                horizontalGap > 5
-            ) {
-                result += " ";
-            }
-        }
-
-        result +=
-            character.character;
-
-        previousCharacter =
-            character;
-    }
-
-    return result;
-}
 
 // ============================================================
 // CLEAR SELECTION
@@ -1370,28 +735,4 @@ function clearSelection() {
     lastSelectedCharacters = [];
 
     debugLog("Selection cleared");
-}
-
-// ============================================================
-// RECTANGLE INTERSECTION
-// ============================================================
-
-function intersects(a, b) {
-
-    return (
-        a.left < b.right &&
-        a.right > b.left &&
-        a.top < b.bottom &&
-        a.bottom > b.top
-    );
-}
-
-function contains(outer, inner) {
-
-    return (
-        inner.left >= outer.left &&
-        inner.right <= outer.right &&
-        inner.top >= outer.top &&
-        inner.bottom <= outer.bottom
-    );
 }
