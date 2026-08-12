@@ -17,6 +17,7 @@ browser.storage.onChanged.addListener((changes, area) => {
 
     if (!enabled) {
         selecting = false;
+        stopAutoScroll();
         selectionBox.style.display = "none";
         clearSelection();
         resetTextNodeCache();
@@ -58,6 +59,107 @@ let startX = 0;
 let startY = 0;
 let endX = 0;
 let endY = 0;
+
+// ============================================================
+// AUTO SCROLL
+// ============================================================
+
+let autoScrollFrame = null;
+
+const AUTO_SCROLL_ZONE = 80;
+const AUTO_SCROLL_MAX_SPEED = 120;
+
+function updateAutoScroll() {
+
+    if (!selecting) {
+        stopAutoScroll();
+        return;
+    }
+
+    let scrollY = 0;
+
+    // -------------------------
+    // Near top
+    // -------------------------
+
+    if (mouseY < AUTO_SCROLL_ZONE) {
+
+        const distance =
+            AUTO_SCROLL_ZONE - mouseY;
+
+        scrollY =
+            -Math.min(
+                AUTO_SCROLL_MAX_SPEED,
+                distance /
+                    AUTO_SCROLL_ZONE *
+                    AUTO_SCROLL_MAX_SPEED
+            );
+    }
+
+    // -------------------------
+    // Near bottom
+    // -------------------------
+
+    else if (
+        mouseY >
+        window.innerHeight -
+        AUTO_SCROLL_ZONE
+    ) {
+
+        const distance =
+            mouseY -
+            (
+                window.innerHeight -
+                AUTO_SCROLL_ZONE
+            );
+
+        scrollY =
+            Math.min(
+                AUTO_SCROLL_MAX_SPEED,
+                distance /
+                    AUTO_SCROLL_ZONE *
+                    AUTO_SCROLL_MAX_SPEED
+            );
+    }
+
+    // -------------------------
+    // Scroll
+    // -------------------------
+
+    if (scrollY !== 0) {
+        window.scrollBy(0, scrollY);
+    }
+
+    autoScrollFrame =
+        requestAnimationFrame(
+            updateAutoScroll
+        );
+}
+
+function startAutoScroll() {
+
+    if (autoScrollFrame !== null) {
+        return;
+    }
+
+    autoScrollFrame =
+        requestAnimationFrame(
+            updateAutoScroll
+        );
+}
+
+function stopAutoScroll() {
+
+    if (autoScrollFrame === null) {
+        return;
+    }
+
+    cancelAnimationFrame(
+        autoScrollFrame
+    );
+
+    autoScrollFrame = null;
+}
 
 // ============================================================
 // TEXT GEOMETRY CACHE
@@ -124,6 +226,7 @@ function getTextNodes() {
 // -------------------------
 
 function getCacheRegion() {
+
     const bufferY =
         window.innerHeight *
         CACHE_BUFFER_MULTIPLIER;
@@ -182,12 +285,6 @@ function isInsideCache(rect, region) {
 
 // ============================================================
 // ADD TEXT NODES TO CACHE
-// ============================================================
-//
-// Adds nodes to the existing cache.
-//
-// Existing nodes are NEVER removed.
-//
 // ============================================================
 
 function addTextNodesToCache(region) {
@@ -290,12 +387,6 @@ function addTextNodesToCache(region) {
 // ============================================================
 // RESET TEXT NODE CACHE
 // ============================================================
-//
-// Completely discards the accumulated cache.
-//
-// Called when a selection finishes so the next selection
-// starts with a fresh viewport + buffer cache.
-// ============================================================
 
 function resetTextNodeCache() {
 
@@ -312,11 +403,6 @@ function resetTextNodeCache() {
 
 // ============================================================
 // REBUILD THE TEXT-NODE CACHE
-// ============================================================
-//
-// This completely replaces the cache.
-//
-// Used when NOT selecting.
 // ============================================================
 
 function rebuildVisibleTextNodeRects() {
@@ -339,15 +425,6 @@ function rebuildVisibleTextNodeRects() {
 
 // ============================================================
 // EXPAND CACHE
-// ============================================================
-//
-// Used while selecting.
-//
-// IMPORTANT:
-// This does NOT clear the existing cache.
-//
-// The new cache region is the union of the old cache region
-// and the newly required region.
 // ============================================================
 
 function expandTextNodeCache() {
@@ -448,14 +525,8 @@ function ensureTextNodeCache() {
         return;
     }
 
-    // ========================================================
-    // IMPORTANT:
-    //
-    // During selection we NEVER rebuild.
-    //
+    // During selection we never rebuild.
     // We expand the existing cache instead.
-    // ========================================================
-
     if (selecting) {
         expandTextNodeCache();
     } else {
@@ -524,15 +595,11 @@ function invalidateVisibleTextNodeRects() {
     cachedTextNodes.clear();
 }
 
-
 // -------------------------
 // Scroll
 //
-// We DON'T invalidate the cache
-// on every scroll.
-//
 // While selecting, leaving the buffer
-// EXPANDS the cache rather than rebuilding it.
+// expands the cache rather than rebuilding it.
 // -------------------------
 
 window.addEventListener(
@@ -543,6 +610,8 @@ window.addEventListener(
             return;
         }
 
+        // The mouse stays at the same viewport
+        // position while the document moves underneath it.
         endX =
             mouseX +
             window.scrollX;
@@ -561,9 +630,6 @@ window.addEventListener(
 
 // -------------------------
 // Resize
-//
-// Resize can change what belongs
-// in the cache.
 // -------------------------
 
 window.addEventListener(
@@ -589,12 +655,6 @@ window.addEventListener(
 
 const observer =
     new MutationObserver(() => {
-
-        // During selection, keep everything
-        // already cached.
-        //
-        // The next cache expansion will discover
-        // newly-created nodes.
 
         if (selecting) {
             return;
@@ -714,33 +774,33 @@ document.addEventListener(
 // ============================================================
 
 document.addEventListener(
-"mousedown",
-(event) => {
+    "mousedown",
+    (event) => {
 
-    if (!enabled) {
-        return;
-    }
-
-    // Left mouse button
-    if (event.button === 0) {
-
-        leftMousePressed = true;
-
-        // If R is already being held,
-        // start rectangle selection.
-        if (rPressed && !selecting) {
-            event.preventDefault();
-            startSelection();
+        if (!enabled) {
             return;
         }
-    }
 
-    // If we're not starting a selection,
-    // clicking normally clears the previous one.
-    if (!selecting && hasSelection) {
-        clearSelection();
+        // Left mouse button
+        if (event.button === 0) {
+
+            leftMousePressed = true;
+
+            // If R is already being held,
+            // start rectangle selection.
+            if (rPressed && !selecting) {
+                event.preventDefault();
+                startSelection();
+                return;
+            }
+        }
+
+        // If we're not starting a selection,
+        // clicking normally clears the previous one.
+        if (!selecting && hasSelection) {
+            clearSelection();
+        }
     }
-}
 );
 
 document.addEventListener(
@@ -789,6 +849,7 @@ document.addEventListener(
         }
     }
 );
+
 // ============================================================
 // FINISH SELECTION
 // ============================================================
@@ -814,6 +875,7 @@ document.addEventListener(
         }
     }
 );
+
 // ============================================================
 // CUSTOM HIGHLIGHT
 // ============================================================
@@ -928,13 +990,14 @@ function startSelection() {
 
     updateSelectionBox();
 
+    startAutoScroll();
+
     debugLog(
         "Selection started:",
         startX,
         startY
     );
 }
-
 
 // ============================================================
 // FINISH SELECTION
@@ -945,6 +1008,8 @@ function finishSelection() {
     if (!selecting) {
         return;
     }
+
+    stopAutoScroll();
 
     selecting = false;
 
@@ -976,13 +1041,17 @@ function finishSelection() {
 // ============================================================
 
 function updateSelectedCharacters() {
+
     // -------------------------
     // Selection rectangle
     // -------------------------
 
     const selectionRect = {
         left:
-            Math.min( startX, endX ),
+            Math.min(
+                startX,
+                endX
+            ),
 
         right:
             Math.max(
@@ -1003,12 +1072,10 @@ function updateSelectedCharacters() {
             )
     };
 
-
     const highlight =
         new Highlight();
 
     const selectedCharacters = [];
-
 
     let nodeCount = 0;
     let characterCount = 0;
@@ -1020,7 +1087,6 @@ function updateSelectedCharacters() {
     let intersectionTime = 0;
     let highlightAddTime = 0;
     let selectedCharacterStorageTime = 0;
-
 
     // -------------------------
     // Process cached nodes
@@ -1036,11 +1102,9 @@ function updateSelectedCharacters() {
         const node =
             entry.node;
 
-
         if (!node.isConnected) {
             continue;
         }
-
 
         // -------------------------
         // Skip nodes that don't
@@ -1055,7 +1119,6 @@ function updateSelectedCharacters() {
         ) {
             continue;
         }
-
 
         // =================================================
         // BUILD CHARACTER CACHE
@@ -1072,7 +1135,6 @@ function updateSelectedCharacters() {
             ) {
 
                 characterCount++;
-
 
                 // -------------------------
                 // Range creation
@@ -1101,7 +1163,6 @@ function updateSelectedCharacters() {
                     rangeEnd -
                     rangeStart;
 
-
                 // -------------------------
                 // Get character geometry
                 // -------------------------
@@ -1118,7 +1179,6 @@ function updateSelectedCharacters() {
                 getBoundingClientRectTime +=
                     rectEnd -
                     rectStart;
-
 
                 // -------------------------
                 // Convert to document coords
@@ -1159,34 +1219,37 @@ function updateSelectedCharacters() {
                     conversionEnd -
                     conversionStart;
 
-
                 // -------------------------
                 // Cache range + rectangle
                 // -------------------------
 
                 entry.characterRects.push({
-
                     rect,
-
                     range
                 });
             }
         }
 
-
         characterCount +=
             entry.characterRects.length;
-
 
         // =================================================
         // FULLY SELECTED NODE
         // =================================================
 
-        if (contains(selectionRect, entry.rect)) {
+        if (
+            contains(
+                selectionRect,
+                entry.rect
+            )
+        ) {
 
-            // One range for the entire text node
-            const range = document.createRange();
+            // One range for the entire text node.
+            const range =
+                document.createRange();
+
             range.selectNodeContents(node);
+
             highlight.add(range);
 
             // Still store individual characters because
@@ -1201,8 +1264,11 @@ function updateSelectedCharacters() {
                     entry.characterRects[i];
 
                 selectedCharacters.push({
-                    character: node.textContent[i],
-                    rect: character.rect
+                    character:
+                        node.textContent[i],
+
+                    rect:
+                        character.rect
                 });
 
                 selectedCount++;
@@ -1210,7 +1276,6 @@ function updateSelectedCharacters() {
 
             continue;
         }
-
 
         // =================================================
         // PARTIALLY SELECTED NODE
@@ -1227,7 +1292,6 @@ function updateSelectedCharacters() {
 
             const rect =
                 character.rect;
-
 
             // -------------------------
             // Intersection
@@ -1249,11 +1313,9 @@ function updateSelectedCharacters() {
                 intersectionEnd -
                 intersectionStart;
 
-
             if (!isSelected) {
                 continue;
             }
-
 
             // -------------------------
             // Highlight
@@ -1272,7 +1334,6 @@ function updateSelectedCharacters() {
             highlightAddTime +=
                 highlightEnd -
                 highlightStart;
-
 
             // -------------------------
             // Store selected character
@@ -1300,27 +1361,21 @@ function updateSelectedCharacters() {
         }
     }
 
-
-
     CSS.highlights.set(
         "rectangle-selection",
         highlight
     );
-
 
     selectedText =
         reconstructText(
             selectedCharacters
         );
 
-
-
     hasSelection =
         selectedText.length > 0;
 
     lastSelectedCharacters =
         selectedCharacters;
-
 
     // -------------------------
     // Diagnostics
@@ -1361,13 +1416,12 @@ function updateSelectedCharacters() {
             selectedCharacterStorageTime.toFixed(2) +
             " ms"
     });
-
-
 }
 
 let selectionUpdatePending = false;
 
 function scheduleSelectionUpdate() {
+
     if (selectionUpdatePending) {
         return;
     }
@@ -1375,6 +1429,7 @@ function scheduleSelectionUpdate() {
     selectionUpdatePending = true;
 
     requestAnimationFrame(() => {
+
         selectionUpdatePending = false;
 
         if (!selecting) {
@@ -1572,6 +1627,7 @@ function intersects(a, b) {
 }
 
 function contains(outer, inner) {
+
     return (
         inner.left >= outer.left &&
         inner.right <= outer.right &&
