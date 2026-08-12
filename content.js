@@ -1085,106 +1085,137 @@ function updateSelectedCharacters() {
         }
 
 
-        // -------------------------
-        // Process characters
-        // -------------------------
+        // =================================================
+        // BUILD CHARACTER CACHE
+        // =================================================
+
+        if (!entry.characterRects) {
+
+            entry.characterRects = [];
+
+            for (
+                let i = 0;
+                i < node.length;
+                i++
+            ) {
+
+                characterCount++;
+
+
+                // =================================================
+                // RANGE CREATION
+                // =================================================
+
+                const rangeStart =
+                    performance.now();
+
+                const range =
+                    document.createRange();
+
+                range.setStart(
+                    node,
+                    i
+                );
+
+                range.setEnd(
+                    node,
+                    i + 1
+                );
+
+                const rangeEnd =
+                    performance.now();
+
+                rangeCreationTime +=
+                    rangeEnd -
+                    rangeStart;
+
+
+                // =================================================
+                // GET CHARACTER GEOMETRY
+                // =================================================
+
+                const rectStart =
+                    performance.now();
+
+                const viewportRect =
+                    range.getBoundingClientRect();
+
+                const rectEnd =
+                    performance.now();
+
+                getBoundingClientRectTime +=
+                    rectEnd -
+                    rectStart;
+
+
+                // =================================================
+                // RECTANGLE CONVERSION
+                // =================================================
+
+                const conversionStart =
+                    performance.now();
+
+                const rect = {
+
+                    left:
+                        viewportRect.left +
+                        window.scrollX,
+
+                    top:
+                        viewportRect.top +
+                        window.scrollY,
+
+                    right:
+                        viewportRect.right +
+                        window.scrollX,
+
+                    bottom:
+                        viewportRect.bottom +
+                        window.scrollY,
+
+                    width:
+                        viewportRect.width,
+
+                    height:
+                        viewportRect.height
+                };
+
+                const conversionEnd =
+                    performance.now();
+
+                rectConversionTime +=
+                    conversionEnd -
+                    conversionStart;
+
+
+                // =================================================
+                // CACHE BOTH RECT AND RANGE
+                // =================================================
+
+                entry.characterRects.push({
+                    rect,
+                    range
+                });
+            }
+        }
+
+
+        // =================================================
+        // INTERSECTION
+        // =================================================
 
         for (
             let i = 0;
-            i < node.length;
+            i < entry.characterRects.length;
             i++
         ) {
 
-            characterCount++;
+            const character =
+                entry.characterRects[i];
 
+            const rect =
+                character.rect;
 
-            // =================================================
-            // RANGE CREATION
-            // =================================================
-
-            const rangeStart =
-                performance.now();
-
-            const range =
-                document.createRange();
-
-            range.setStart(
-                node,
-                i
-            );
-
-            range.setEnd(
-                node,
-                i + 1
-            );
-
-            const rangeEnd =
-                performance.now();
-
-            rangeCreationTime +=
-                rangeEnd - rangeStart;
-
-
-            // =================================================
-            // GET CHARACTER GEOMETRY
-            // =================================================
-
-            const rectStart =
-                performance.now();
-
-            const viewportRect =
-                range.getBoundingClientRect();
-
-            const rectEnd =
-                performance.now();
-
-            getBoundingClientRectTime +=
-                rectEnd - rectStart;
-
-
-            // =================================================
-            // RECTANGLE CONVERSION
-            // =================================================
-
-            const conversionStart =
-                performance.now();
-
-            const rect = {
-
-                left:
-                    viewportRect.left +
-                    window.scrollX,
-
-                top:
-                    viewportRect.top +
-                    window.scrollY,
-
-                right:
-                    viewportRect.right +
-                    window.scrollX,
-
-                bottom:
-                    viewportRect.bottom +
-                    window.scrollY,
-
-                width:
-                    viewportRect.width,
-
-                height:
-                    viewportRect.height
-            };
-
-            const conversionEnd =
-                performance.now();
-
-            rectConversionTime +=
-                conversionEnd -
-                conversionStart;
-
-
-            // =================================================
-            // INTERSECTION
-            // =================================================
 
             const intersectionStart =
                 performance.now();
@@ -1203,48 +1234,53 @@ function updateSelectedCharacters() {
                 intersectionStart;
 
 
-            if (isSelected) {
-
-                // =============================================
-                // HIGHLIGHT
-                // =============================================
-
-                const highlightStart =
-                    performance.now();
-
-                highlight.add(range);
-
-                const highlightEnd =
-                    performance.now();
-
-                highlightAddTime +=
-                    highlightEnd -
-                    highlightStart;
-
-
-                // =============================================
-                // STORE SELECTED CHARACTER
-                // =============================================
-
-                const storageStart =
-                    performance.now();
-
-                selectedCharacters.push({
-                    character:
-                        node.textContent[i],
-
-                    rect
-                });
-
-                selectedCount++;
-
-                const storageEnd =
-                    performance.now();
-
-                selectedCharacterStorageTime +=
-                    storageEnd -
-                    storageStart;
+            if (!isSelected) {
+                continue;
             }
+
+
+            // =============================================
+            // HIGHLIGHT
+            // =============================================
+
+            const highlightStart =
+                performance.now();
+
+            highlight.add(
+                character.range
+            );
+
+            const highlightEnd =
+                performance.now();
+
+            highlightAddTime +=
+                highlightEnd -
+                highlightStart;
+
+
+            // =============================================
+            // STORE SELECTED CHARACTER
+            // =============================================
+
+            const storageStart =
+                performance.now();
+
+            selectedCharacters.push({
+
+                character:
+                    node.textContent[i],
+
+                rect
+            });
+
+            selectedCount++;
+
+            const storageEnd =
+                performance.now();
+
+            selectedCharacterStorageTime +=
+                storageEnd -
+                storageStart;
         }
     }
 
@@ -1295,27 +1331,39 @@ function updateSelectedCharacters() {
 
 
     console.log({
-        nodes: nodeCount,
-        characters: characterCount,
-        selected: selectedCount,
+
+        nodes:
+            nodeCount,
+
+        characters:
+            characterCount,
+
+        selected:
+            selectedCount,
 
         rangeCreation:
-            rangeCreationTime.toFixed(2) + " ms",
+            rangeCreationTime.toFixed(2) +
+            " ms",
 
         getBoundingClientRect:
-            getBoundingClientRectTime.toFixed(2) + " ms",
+            getBoundingClientRectTime.toFixed(2) +
+            " ms",
 
         rectConversion:
-            rectConversionTime.toFixed(2) + " ms",
+            rectConversionTime.toFixed(2) +
+            " ms",
 
         intersection:
-            intersectionTime.toFixed(2) + " ms",
+            intersectionTime.toFixed(2) +
+            " ms",
 
         highlightAdd:
-            highlightAddTime.toFixed(2) + " ms",
+            highlightAddTime.toFixed(2) +
+            " ms",
 
         selectedCharacterStorage:
-            selectedCharacterStorageTime.toFixed(2) + " ms"
+            selectedCharacterStorageTime.toFixed(2) +
+            " ms"
     });
 
 
