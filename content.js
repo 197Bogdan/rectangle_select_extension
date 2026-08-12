@@ -1,9 +1,13 @@
-let enabled = false;
+import { state } from "./state.js";
+import {
+    startAutoScroll,
+    stopAutoScroll
+} from "./autoScroll.js";
 
 browser.storage.local.get("enabled").then((result) => {
-    enabled = result.enabled ?? false;
+    state.enabled = result.enabled ?? false;
 
-    if (!enabled) {
+    if (!state.enabled) {
         clearSelection();
     }
 });
@@ -13,10 +17,10 @@ browser.storage.onChanged.addListener((changes, area) => {
         return;
     }
 
-    enabled = changes.enabled.newValue;
+    state.enabled = changes.enabled.newValue;
 
-    if (!enabled) {
-        selecting = false;
+    if (!state.enabled) {
+        state.selecting = false;
         stopAutoScroll();
         selectionBox.style.display = "none";
         clearSelection();
@@ -38,128 +42,7 @@ function debugTable(rows) {
     }
 }
 
-let selecting = false;
-let rPressed = false;
-let leftMousePressed = false;
 
-let selectedText = "";
-let hasSelection = false;
-
-// -------------------------
-// Mouse coordinates
-//
-// mouseX / mouseY are viewport coordinates.
-// start/end are DOCUMENT coordinates.
-// -------------------------
-
-let mouseX = 0;
-let mouseY = 0;
-
-let startX = 0;
-let startY = 0;
-let endX = 0;
-let endY = 0;
-
-// ============================================================
-// AUTO SCROLL
-// ============================================================
-
-let autoScrollFrame = null;
-
-const AUTO_SCROLL_ZONE = 80;
-const AUTO_SCROLL_MAX_SPEED = 120;
-
-function updateAutoScroll() {
-
-    if (!selecting) {
-        stopAutoScroll();
-        return;
-    }
-
-    let scrollY = 0;
-
-    // -------------------------
-    // Near top
-    // -------------------------
-
-    if (mouseY < AUTO_SCROLL_ZONE) {
-
-        const distance =
-            AUTO_SCROLL_ZONE - mouseY;
-
-        scrollY =
-            -Math.min(
-                AUTO_SCROLL_MAX_SPEED,
-                distance /
-                    AUTO_SCROLL_ZONE *
-                    AUTO_SCROLL_MAX_SPEED
-            );
-    }
-
-    // -------------------------
-    // Near bottom
-    // -------------------------
-
-    else if (
-        mouseY >
-        window.innerHeight -
-        AUTO_SCROLL_ZONE
-    ) {
-
-        const distance =
-            mouseY -
-            (
-                window.innerHeight -
-                AUTO_SCROLL_ZONE
-            );
-
-        scrollY =
-            Math.min(
-                AUTO_SCROLL_MAX_SPEED,
-                distance /
-                    AUTO_SCROLL_ZONE *
-                    AUTO_SCROLL_MAX_SPEED
-            );
-    }
-
-    // -------------------------
-    // Scroll
-    // -------------------------
-
-    if (scrollY !== 0) {
-        window.scrollBy(0, scrollY);
-    }
-
-    autoScrollFrame =
-        requestAnimationFrame(
-            updateAutoScroll
-        );
-}
-
-function startAutoScroll() {
-
-    if (autoScrollFrame !== null) {
-        return;
-    }
-
-    autoScrollFrame =
-        requestAnimationFrame(
-            updateAutoScroll
-        );
-}
-
-function stopAutoScroll() {
-
-    if (autoScrollFrame === null) {
-        return;
-    }
-
-    cancelAnimationFrame(
-        autoScrollFrame
-    );
-
-    autoScrollFrame = null;
-}
 
 // ============================================================
 // TEXT GEOMETRY CACHE
@@ -503,7 +386,7 @@ function ensureTextNodeCache() {
         !cacheRegion
     ) {
 
-        if (selecting) {
+        if (state.selecting) {
             expandTextNodeCache();
         } else {
             rebuildVisibleTextNodeRects();
@@ -527,7 +410,7 @@ function ensureTextNodeCache() {
 
     // During selection we never rebuild.
     // We expand the existing cache instead.
-    if (selecting) {
+    if (state.selecting) {
         expandTextNodeCache();
     } else {
         rebuildVisibleTextNodeRects();
@@ -584,7 +467,7 @@ function logVisibleTextNodeRects() {
 
 function invalidateVisibleTextNodeRects() {
 
-    if (selecting) {
+    if (state.selecting) {
         return;
     }
 
@@ -606,18 +489,18 @@ window.addEventListener(
     "scroll",
     () => {
 
-        if (!selecting) {
+        if (!state.selecting) {
             return;
         }
 
         // The mouse stays at the same viewport
         // position while the document moves underneath it.
-        endX =
-            mouseX +
+        state.endX =
+            state.mouseX +
             window.scrollX;
 
-        endY =
-            mouseY +
+        state.endY =
+            state.mouseY +
             window.scrollY;
 
         updateSelectionBox();
@@ -636,7 +519,7 @@ window.addEventListener(
     "resize",
     () => {
 
-        if (selecting) {
+        if (state.selecting) {
 
             updateSelectionBox();
             scheduleSelectionUpdate();
@@ -656,7 +539,7 @@ window.addEventListener(
 const observer =
     new MutationObserver(() => {
 
-        if (selecting) {
+        if (state.selecting) {
             return;
         }
 
@@ -706,18 +589,18 @@ document.documentElement.appendChild(
 function updateSelectionBox() {
 
     const left =
-        Math.min(startX, endX) -
+        Math.min(state.startX, state.endX) -
         window.scrollX;
 
     const top =
-        Math.min(startY, endY) -
+        Math.min(state.startY, state.endY) -
         window.scrollY;
 
     const width =
-        Math.abs(endX - startX);
+        Math.abs(state.endX - state.startX);
 
     const height =
-        Math.abs(endY - startY);
+        Math.abs(state.endY - state.startY);
 
     selectionBox.style.left =
         `${left}px`;
@@ -740,15 +623,15 @@ document.addEventListener(
     "mousemove",
     (event) => {
 
-        if (!enabled) {
+        if (!state.enabled) {
             return;
         }
 
         // Mouse coordinates are viewport-relative.
-        mouseX = event.clientX;
-        mouseY = event.clientY;
+        state.mouseX = event.clientX;
+        state.mouseY = event.clientY;
 
-        if (!selecting) {
+        if (!state.selecting) {
             return;
         }
 
@@ -756,11 +639,11 @@ document.addEventListener(
 
         // Convert mouse coordinates to
         // document coordinates.
-        endX =
+        state.endX =
             event.clientX +
             window.scrollX;
 
-        endY =
+        state.endY =
             event.clientY +
             window.scrollY;
 
@@ -777,18 +660,18 @@ document.addEventListener(
     "mousedown",
     (event) => {
 
-        if (!enabled) {
+        if (!state.enabled) {
             return;
         }
 
         // Left mouse button
         if (event.button === 0) {
 
-            leftMousePressed = true;
+            state.leftMousePressed = true;
 
             // If R is already being held,
             // start rectangle selection.
-            if (rPressed && !selecting) {
+            if (state.rPressed && !state.selecting) {
                 event.preventDefault();
                 startSelection();
                 return;
@@ -797,7 +680,7 @@ document.addEventListener(
 
         // If we're not starting a selection,
         // clicking normally clears the previous one.
-        if (!selecting && hasSelection) {
+        if (!state.selecting && state.hasSelection) {
             clearSelection();
         }
     }
@@ -811,10 +694,10 @@ document.addEventListener(
             return;
         }
 
-        leftMousePressed = false;
+        state.leftMousePressed = false;
 
         // Releasing left click ends selection.
-        if (selecting) {
+        if (state.selecting) {
             finishSelection();
         }
     }
@@ -828,7 +711,7 @@ document.addEventListener(
     "keydown",
     (event) => {
 
-        if (!enabled) {
+        if (!state.enabled) {
             return;
         }
 
@@ -836,13 +719,13 @@ document.addEventListener(
             event.key.toLowerCase() === "r"
         ) {
 
-            rPressed = true;
+            state.rPressed = true;
 
             // If left click is already held,
             // start rectangle selection.
             if (
-                leftMousePressed &&
-                !selecting
+                state.leftMousePressed &&
+                !state.selecting
             ) {
                 startSelection();
             }
@@ -858,7 +741,7 @@ document.addEventListener(
     "keyup",
     (event) => {
 
-        if (!enabled) {
+        if (!state.enabled) {
             return;
         }
 
@@ -866,10 +749,10 @@ document.addEventListener(
             event.key.toLowerCase() === "r"
         ) {
 
-            rPressed = false;
+            state.rPressed = false;
 
             // Releasing R ends selection.
-            if (selecting) {
+            if (state.selecting) {
                 finishSelection();
             }
         }
@@ -902,11 +785,11 @@ document.addEventListener(
     "keydown",
     async (event) => {
 
-        if (!enabled) {
+        if (!state.enabled) {
             return;
         }
 
-        if (!hasSelection) {
+        if (!state.hasSelection) {
             return;
         }
 
@@ -935,11 +818,11 @@ document.addEventListener(
         try {
 
             await navigator.clipboard.writeText(
-                selectedText
+                state.selectedText
             );
 
             debugLog("Copied:");
-            debugLog(selectedText);
+            debugLog(state.selectedText);
 
         } catch (error) {
 
@@ -957,11 +840,11 @@ document.addEventListener(
 
 function startSelection() {
 
-    if (selecting) {
+    if (state.selecting) {
         return;
     }
 
-    selecting = true;
+    state.selecting = true;
 
     // Make sure we are working with
     // the current DOM.
@@ -973,16 +856,16 @@ function startSelection() {
 
     // Convert current mouse position
     // from viewport → document coords.
-    startX =
-        mouseX +
+    state.startX =
+        state.mouseX +
         window.scrollX;
 
-    startY =
-        mouseY +
+    state.startY =
+        state.mouseY +
         window.scrollY;
 
-    endX = startX;
-    endY = startY;
+    state.endX = state.startX;
+    state.endY = state.startY;
 
     // Show selection box.
     selectionBox.style.display =
@@ -994,8 +877,8 @@ function startSelection() {
 
     debugLog(
         "Selection started:",
-        startX,
-        startY
+        state.startX,
+        state.startY
     );
 }
 
@@ -1005,13 +888,13 @@ function startSelection() {
 
 function finishSelection() {
 
-    if (!selecting) {
+    if (!state.selecting) {
         return;
     }
 
     stopAutoScroll();
 
-    selecting = false;
+    state.selecting = false;
 
     // Hide selection box.
     selectionBox.style.display =
@@ -1025,10 +908,10 @@ function finishSelection() {
     debugLog(
         "Selection finished:",
         {
-            startX,
-            startY,
-            endX,
-            endY
+            startX: state.startX,
+            startY: state.startY,
+            endX: state.endX,
+            endY: state.endY
         }
     );
 
@@ -1049,26 +932,26 @@ function updateSelectedCharacters() {
     const selectionRect = {
         left:
             Math.min(
-                startX,
-                endX
+                state.startX,
+                state.endX
             ),
 
         right:
             Math.max(
-                startX,
-                endX
+                state.startX,
+                state.endX
             ),
 
         top:
             Math.min(
-                startY,
-                endY
+                state.startY,
+                state.endY
             ),
 
         bottom:
             Math.max(
-                startY,
-                endY
+                state.startY,
+                state.endY
             )
     };
 
@@ -1287,13 +1170,13 @@ function updateSelectedCharacters() {
         highlight
     );
 
-    selectedText =
+    state.selectedText =
         reconstructText(
             selectedCharacters
         );
 
-    hasSelection =
-        selectedText.length > 0;
+    state.hasSelection =
+        state.selectedText.length > 0;
 
     lastSelectedCharacters =
         selectedCharacters;
@@ -1313,7 +1196,7 @@ function scheduleSelectionUpdate() {
 
         selectionUpdatePending = false;
 
-        if (!selecting) {
+        if (!state.selecting) {
             return;
         }
 
@@ -1482,8 +1365,8 @@ function clearSelection() {
         "rectangle-selection"
     );
 
-    selectedText = "";
-    hasSelection = false;
+    state.selectedText = "";
+    state.hasSelection = false;
     lastSelectedCharacters = [];
 
     debugLog("Selection cleared");
