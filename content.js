@@ -524,6 +524,7 @@ function invalidateVisibleTextNodeRects() {
     cachedTextNodes.clear();
 }
 
+
 // -------------------------
 // Scroll
 //
@@ -545,28 +546,12 @@ window.addEventListener(
         ensureTextNodeCache();
 
         updateSelectionBox();
-        updateSelectedCharacters();
+        scheduleSelectionUpdate();
     },
     {
         passive: true
     }
 );
-
-document.addEventListener("wheel", (event) => {
-    if (!selecting) {
-        return;
-    }
-
-    event.preventDefault();
-
-    window.scrollBy({
-        left: 0,
-        top: event.deltaY,
-        behavior: "auto"
-    });
-}, {
-    passive: false
-});
 
 // -------------------------
 // Resize
@@ -722,8 +707,7 @@ document.addEventListener(
             window.scrollY;
 
         updateSelectionBox();
-
-        updateSelectedCharacters();
+        scheduleSelectionUpdate();
     }
 );
 
@@ -995,19 +979,15 @@ function finishSelection() {
 
 function updateSelectedCharacters() {
 
-    // -------------------------
-    // Make sure the cache is
-    // current and covers the
-    // current viewport.
-    // -------------------------
+    console.time("updateSelectedCharacters");
 
+    console.time("ensureTextNodeCache");
     ensureTextNodeCache();
+    console.timeEnd("ensureTextNodeCache");
+
 
     // -------------------------
     // Selection rectangle
-    //
-    // Everything here is now
-    // DOCUMENT coordinates.
     // -------------------------
 
     const selectionRect = {
@@ -1037,21 +1017,41 @@ function updateSelectedCharacters() {
             )
     };
 
+
     const highlight =
         new Highlight();
 
     const selectedCharacters = [];
 
+
     let nodeCount = 0;
     let characterCount = 0;
     let selectedCount = 0;
 
+    let rangeCreationTime = 0;
+    let getBoundingClientRectTime = 0;
+    let rectConversionTime = 0;
+    let intersectionTime = 0;
+    let highlightAddTime = 0;
+    let selectedCharacterStorageTime = 0;
+
+
+    // ========================================================
+    // CHARACTER PROCESSING TIMERS
+    // ========================================================
+
+    console.time("characterProcessing");
+
+    console.time("rangeCreation");
+    console.time("getBoundingClientRect");
+    console.time("rectConversion");
+    console.time("intersection");
+    console.time("highlightAdd");
+    console.time("selectedCharacterStorage");
+
+
     // -------------------------
-    // Process ONLY cached nodes.
-    //
-    // Since the cache is append-only
-    // during selection, this includes
-    // text from earlier scroll positions.
+    // Process cached nodes
     // -------------------------
 
     for (
@@ -1064,11 +1064,26 @@ function updateSelectedCharacters() {
         const node =
             entry.node;
 
-        // DOM may have changed since
-        // the cache was generated.
+
         if (!node.isConnected) {
             continue;
         }
+
+
+        // -------------------------
+        // Skip nodes that don't
+        // intersect selection.
+        // -------------------------
+
+        if (
+            !intersects(
+                entry.rect,
+                selectionRect
+            )
+        ) {
+            continue;
+        }
+
 
         // -------------------------
         // Process characters
@@ -1081,6 +1096,14 @@ function updateSelectedCharacters() {
         ) {
 
             characterCount++;
+
+
+            // =================================================
+            // RANGE CREATION
+            // =================================================
+
+            const rangeStart =
+                performance.now();
 
             const range =
                 document.createRange();
@@ -1095,12 +1118,37 @@ function updateSelectedCharacters() {
                 i + 1
             );
 
-            // getBoundingClientRect()
-            // returns VIEWPORT coordinates.
+            const rangeEnd =
+                performance.now();
+
+            rangeCreationTime +=
+                rangeEnd - rangeStart;
+
+
+            // =================================================
+            // GET CHARACTER GEOMETRY
+            // =================================================
+
+            const rectStart =
+                performance.now();
+
             const viewportRect =
                 range.getBoundingClientRect();
 
-            // Convert to DOCUMENT coordinates.
+            const rectEnd =
+                performance.now();
+
+            getBoundingClientRectTime +=
+                rectEnd - rectStart;
+
+
+            // =================================================
+            // RECTANGLE CONVERSION
+            // =================================================
+
+            const conversionStart =
+                performance.now();
+
             const rect = {
 
                 left:
@@ -1126,15 +1174,60 @@ function updateSelectedCharacters() {
                     viewportRect.height
             };
 
+            const conversionEnd =
+                performance.now();
+
+            rectConversionTime +=
+                conversionEnd -
+                conversionStart;
+
+
+            // =================================================
+            // INTERSECTION
+            // =================================================
+
+            const intersectionStart =
+                performance.now();
+
             const isSelected =
                 intersects(
                     rect,
                     selectionRect
                 );
 
+            const intersectionEnd =
+                performance.now();
+
+            intersectionTime +=
+                intersectionEnd -
+                intersectionStart;
+
+
             if (isSelected) {
 
+                // =============================================
+                // HIGHLIGHT
+                // =============================================
+
+                const highlightStart =
+                    performance.now();
+
                 highlight.add(range);
+
+                const highlightEnd =
+                    performance.now();
+
+                highlightAddTime +=
+                    highlightEnd -
+                    highlightStart;
+
+
+                // =============================================
+                // STORE SELECTED CHARACTER
+                // =============================================
+
+                const storageStart =
+                    performance.now();
 
                 selectedCharacters.push({
                     character:
@@ -1144,34 +1237,109 @@ function updateSelectedCharacters() {
                 });
 
                 selectedCount++;
+
+                const storageEnd =
+                    performance.now();
+
+                selectedCharacterStorageTime +=
+                    storageEnd -
+                    storageStart;
             }
         }
     }
 
+
+    console.timeEnd("rangeCreation");
+    console.timeEnd("getBoundingClientRect");
+    console.timeEnd("rectConversion");
+    console.timeEnd("intersection");
+    console.timeEnd("highlightAdd");
+    console.timeEnd("selectedCharacterStorage");
+
+    console.timeEnd("characterProcessing");
+
+
     // -------------------------
     // Apply highlight
     // -------------------------
+
+    console.time("CSS.highlights");
 
     CSS.highlights.set(
         "rectangle-selection",
         highlight
     );
 
+    console.timeEnd("CSS.highlights");
+
+
     // -------------------------
     // Reconstruct text
     // -------------------------
+
+    console.time("reconstructText");
 
     selectedText =
         reconstructText(
             selectedCharacters
         );
 
+    console.timeEnd("reconstructText");
+
+
     hasSelection =
         selectedText.length > 0;
 
-    // Store current selected rectangles.
     lastSelectedCharacters =
         selectedCharacters;
+
+
+    console.log({
+        nodes: nodeCount,
+        characters: characterCount,
+        selected: selectedCount,
+
+        rangeCreation:
+            rangeCreationTime.toFixed(2) + " ms",
+
+        getBoundingClientRect:
+            getBoundingClientRectTime.toFixed(2) + " ms",
+
+        rectConversion:
+            rectConversionTime.toFixed(2) + " ms",
+
+        intersection:
+            intersectionTime.toFixed(2) + " ms",
+
+        highlightAdd:
+            highlightAddTime.toFixed(2) + " ms",
+
+        selectedCharacterStorage:
+            selectedCharacterStorageTime.toFixed(2) + " ms"
+    });
+
+
+    console.timeEnd("updateSelectedCharacters");
+}
+
+let selectionUpdatePending = false;
+
+function scheduleSelectionUpdate() {
+    if (selectionUpdatePending) {
+        return;
+    }
+
+    selectionUpdatePending = true;
+
+    requestAnimationFrame(() => {
+        selectionUpdatePending = false;
+
+        if (!selecting) {
+            return;
+        }
+
+        updateSelectedCharacters();
+    });
 }
 
 // ============================================================
@@ -1356,5 +1524,14 @@ function intersects(a, b) {
         a.right > b.left &&
         a.top < b.bottom &&
         a.bottom > b.top
+    );
+}
+
+function contains(outer, inner) {
+    return (
+        inner.left >= outer.left &&
+        inner.right <= outer.right &&
+        inner.top >= outer.top &&
+        inner.bottom <= outer.bottom
     );
 }
