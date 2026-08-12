@@ -19,37 +19,26 @@ export function reconstructText(characters) {
 
     let result = "";
 
-    let currentRowTop =
-        characters[0].rect.top;
+    let currentRowTop = characters[0].rect.top;
 
-    let previousCharacter =
-        characters[0];
+    let previousCharacter = characters[0];
 
     result += previousCharacter.character;
 
     for (let i = 1; i < characters.length; i++) {
-        const character =
-            characters[i];
+        const character = characters[i];
 
-        const rowDifference =
-            Math.abs(
-                character.rect.top -
-                currentRowTop
-            );
+        const rowDifference = Math.abs(character.rect.top - currentRowTop);
 
         // New visual row
         if (rowDifference > 2) {
             result += "\n";
-
-            currentRowTop =
-                character.rect.top;
+            currentRowTop = character.rect.top;
         }
 
         // Same row
         else {
-            const horizontalGap =
-                character.rect.left -
-                previousCharacter.rect.right;
+            const horizontalGap = character.rect.left - previousCharacter.rect.right;
 
             if (horizontalGap > 5) {
                 result += " ";
@@ -58,8 +47,7 @@ export function reconstructText(characters) {
 
         result += character.character;
 
-        previousCharacter =
-            character;
+        previousCharacter = character;
     }
 
     return result;

@@ -5,9 +5,9 @@ let autoScrollFrame = null;
 const AUTO_SCROLL_ZONE = 80;
 const AUTO_SCROLL_MAX_SPEED = 120;
 
-function updateAutoScroll() {
+function tryAutoScroll() {
     if (!state.selecting) {
-        stopAutoScroll();
+        disableAutoScroll();
         return;
     }
 
@@ -50,19 +50,19 @@ function updateAutoScroll() {
     }
 
     autoScrollFrame =
-        requestAnimationFrame(updateAutoScroll);
+        requestAnimationFrame(tryAutoScroll);
 }
 
-export function startAutoScroll() {
+export function enableAutoScroll() {
     if (autoScrollFrame !== null) {
         return;
     }
 
     autoScrollFrame =
-        requestAnimationFrame(updateAutoScroll);
+        requestAnimationFrame(tryAutoScroll);
 }
 
-export function stopAutoScroll() {
+export function disableAutoScroll() {
     if (autoScrollFrame === null) {
         return;
     }

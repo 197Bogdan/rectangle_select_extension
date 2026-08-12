@@ -1,28 +1,32 @@
 {
-    "name": "Rectangle Select Extension",
-    "description": "Allows you to select text in a rectangle form.",
-    "version": "1.0",
-    "manifest_version": 3,
-    "action": {
-        "default_popup": "rectangle_select.html",
-        "default_icon": "icon.png"
-    },
-    "browser_specific_settings": {
-      "gecko": {
-        "id": "rectangle-selection@example.com"
-      }
-    },
-    "content_scripts": [
+  "name": "Rectangle Select",
+  "description": "Allows you to select text in a rectangle form.",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "rectangle_select.html",
+    "default_icon": "icon.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "rectangle-selection@example.com"
+    }
+  },
+  "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "dist/content/main.js"
+      ]
     }
   ],
   "permissions": [
     "storage"
   ],
   "background": {
-    "scripts": ["background.js"]
+      "scripts": ["background.js"]
   },
   "commands": {
     "toggle-rectangle-selection": {
