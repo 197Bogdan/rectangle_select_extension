@@ -24,7 +24,7 @@ browser.storage.onChanged.addListener((changes, area) => {
     }
 });
 
-const DEBUG = true;
+const DEBUG = false;
 
 function debugLog(...args) {
     if (DEBUG) {
@@ -1076,18 +1076,6 @@ function updateSelectedCharacters() {
         new Highlight();
 
     const selectedCharacters = [];
-
-    let nodeCount = 0;
-    let characterCount = 0;
-    let selectedCount = 0;
-
-    let rangeCreationTime = 0;
-    let getBoundingClientRectTime = 0;
-    let rectConversionTime = 0;
-    let intersectionTime = 0;
-    let highlightAddTime = 0;
-    let selectedCharacterStorageTime = 0;
-
     // -------------------------
     // Process cached nodes
     // -------------------------
@@ -1096,8 +1084,6 @@ function updateSelectedCharacters() {
         const entry
         of visibleTextNodeRects
     ) {
-
-        nodeCount++;
 
         const node =
             entry.node;
@@ -1134,14 +1120,9 @@ function updateSelectedCharacters() {
                 i++
             ) {
 
-                characterCount++;
-
                 // -------------------------
                 // Range creation
                 // -------------------------
-
-                const rangeStart =
-                    performance.now();
 
                 const range =
                     document.createRange();
@@ -1156,36 +1137,18 @@ function updateSelectedCharacters() {
                     i + 1
                 );
 
-                const rangeEnd =
-                    performance.now();
-
-                rangeCreationTime +=
-                    rangeEnd -
-                    rangeStart;
 
                 // -------------------------
                 // Get character geometry
                 // -------------------------
 
-                const rectStart =
-                    performance.now();
-
                 const viewportRect =
                     range.getBoundingClientRect();
 
-                const rectEnd =
-                    performance.now();
-
-                getBoundingClientRectTime +=
-                    rectEnd -
-                    rectStart;
 
                 // -------------------------
                 // Convert to document coords
                 // -------------------------
-
-                const conversionStart =
-                    performance.now();
 
                 const rect = {
 
@@ -1212,13 +1175,6 @@ function updateSelectedCharacters() {
                         viewportRect.height
                 };
 
-                const conversionEnd =
-                    performance.now();
-
-                rectConversionTime +=
-                    conversionEnd -
-                    conversionStart;
-
                 // -------------------------
                 // Cache range + rectangle
                 // -------------------------
@@ -1230,8 +1186,6 @@ function updateSelectedCharacters() {
             }
         }
 
-        characterCount +=
-            entry.characterRects.length;
 
         // =================================================
         // FULLY SELECTED NODE
@@ -1270,8 +1224,6 @@ function updateSelectedCharacters() {
                     rect:
                         character.rect
                 });
-
-                selectedCount++;
             }
 
             continue;
@@ -1297,21 +1249,12 @@ function updateSelectedCharacters() {
             // Intersection
             // -------------------------
 
-            const intersectionStart =
-                performance.now();
-
             const isSelected =
                 intersects(
                     rect,
                     selectionRect
                 );
 
-            const intersectionEnd =
-                performance.now();
-
-            intersectionTime +=
-                intersectionEnd -
-                intersectionStart;
 
             if (!isSelected) {
                 continue;
@@ -1321,26 +1264,13 @@ function updateSelectedCharacters() {
             // Highlight
             // -------------------------
 
-            const highlightStart =
-                performance.now();
-
             highlight.add(
                 character.range
             );
 
-            const highlightEnd =
-                performance.now();
-
-            highlightAddTime +=
-                highlightEnd -
-                highlightStart;
-
             // -------------------------
             // Store selected character
             // -------------------------
-
-            const storageStart =
-                performance.now();
 
             selectedCharacters.push({
 
@@ -1349,15 +1279,6 @@ function updateSelectedCharacters() {
 
                 rect
             });
-
-            selectedCount++;
-
-            const storageEnd =
-                performance.now();
-
-            selectedCharacterStorageTime +=
-                storageEnd -
-                storageStart;
         }
     }
 
@@ -1376,46 +1297,6 @@ function updateSelectedCharacters() {
 
     lastSelectedCharacters =
         selectedCharacters;
-
-    // -------------------------
-    // Diagnostics
-    // -------------------------
-
-    console.log({
-
-        nodes:
-            nodeCount,
-
-        characters:
-            characterCount,
-
-        selected:
-            selectedCount,
-
-        rangeCreation:
-            rangeCreationTime.toFixed(2) +
-            " ms",
-
-        getBoundingClientRect:
-            getBoundingClientRectTime.toFixed(2) +
-            " ms",
-
-        rectConversion:
-            rectConversionTime.toFixed(2) +
-            " ms",
-
-        intersection:
-            intersectionTime.toFixed(2) +
-            " ms",
-
-        highlightAdd:
-            highlightAddTime.toFixed(2) +
-            " ms",
-
-        selectedCharacterStorage:
-            selectedCharacterStorageTime.toFixed(2) +
-            " ms"
-    });
 }
 
 let selectionUpdatePending = false;
@@ -1602,14 +1483,10 @@ function clearSelection() {
     );
 
     selectedText = "";
-
     hasSelection = false;
-
     lastSelectedCharacters = [];
 
-    debugLog(
-        "Selection cleared"
-    );
+    debugLog("Selection cleared");
 }
 
 // ============================================================
