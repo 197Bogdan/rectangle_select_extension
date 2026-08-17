@@ -1,0 +1,2 @@
+bugs:
+can't select text while scrolling inside any scrollable container. e.g.: chatgpt page, gmail page

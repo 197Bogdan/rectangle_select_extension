@@ -88,6 +88,10 @@ function addTextNodeRectsToCache(region) {
             continue;
         }
 
+        if (!isTextNodeVisible(node)) {
+            continue;
+        }
+
         cachedTextNodeRects.push({
             node,
             rect: documentRect
@@ -155,6 +159,22 @@ function expandTextNodeRectsCache() {
     if (addedCount > 0) {
         debugLog(`Text cache expanded: +${addedCount} nodes, total ${cachedTextNodeRects.length}`);
     }
+}
+
+function isTextNodeVisible(node) {
+    let element = node.parentElement;
+
+    while (element) {
+        const style = getComputedStyle(element);
+
+        if (style.display === "none" || style.visibility === "hidden") {
+            return false;
+        }
+
+        element = element.parentElement;
+    }
+
+    return true;
 }
 
 export function ensureTextNodeRectsCache() {
