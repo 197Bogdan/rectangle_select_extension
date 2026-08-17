@@ -15,7 +15,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "rectangle-selection@example.com"
+      "id": "rectangle-selection@rectangle.com"
     }
   },
   "content_scripts": [
