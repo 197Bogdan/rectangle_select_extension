@@ -28,7 +28,7 @@ await build({
     bundle: true,
     format: "esm",
     target: ["es2020"],
-    minify: true,
+    minify: false,
     outfile: path.join(distDir, "content", "main.js")
 });
 
