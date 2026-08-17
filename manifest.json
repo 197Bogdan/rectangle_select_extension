@@ -4,8 +4,14 @@
   "version": "1.0.0",
   "manifest_version": 3,
   "action": {
-    "default_popup": "rectangle_select.html",
-    "default_icon": "icon.png"
+    "default_title": "Rectangle Selection",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png",
+      "32": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
   },
   "browser_specific_settings": {
     "gecko": {
@@ -18,15 +24,19 @@
         "<all_urls>"
       ],
       "js": [
-        "dist/content/main.js"
-      ]
+        "content/main.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "permissions": [
     "storage"
   ],
   "background": {
-      "scripts": ["background.js"]
+    "service_worker": "background.js",
+    "scripts": [
+      "background.js"
+    ]
   },
   "commands": {
     "toggle-rectangle-selection": {

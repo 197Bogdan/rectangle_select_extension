@@ -1,15 +1,23 @@
 {
-  "name": "rectangle_select_extension",
+  "name": "rectangle-selection-extension",
+  "private": true,
   "version": "1.0.0",
-  "description": "",
-  "main": "background.js",
+  "description": "Rectangle selection browser extension",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "node build.js"
+    "build": "node build.js",
+    "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\""
   },
-  "keywords": [],
+  "keywords": [
+    "browser-extension",
+    "chrome-extension",
+    "rectangle-selection"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
   "devDependencies": {
     "esbuild": "^0.28.2"
   }

@@ -6,20 +6,22 @@ import { updateSelectionBox, hideSelectionBox,
     startSelection, finishSelection, clearSelection, scheduleSelectionUpdate
  } from "./selection.js";
 
-browser.storage.local.get("enabled").then((result) => {
-    state.enabled = result.enabled ?? false;
+const browserAPI = globalThis.browser || globalThis.chrome;
+
+browserAPI.storage.local.get("enabled", (result) => {
+    state.enabled = Boolean(result.enabled);
 
     if (!state.enabled) {
         clearSelection();
     }
 });
 
-browser.storage.onChanged.addListener((changes, area) => {
+browserAPI.storage.onChanged.addListener((changes, area) => {
     if (area !== "local" || !changes.enabled) {
         return;
     }
 
-    state.enabled = changes.enabled.newValue;
+    state.enabled = Boolean(changes.enabled.newValue);
 
     if (!state.enabled) {
         state.selecting = false;
