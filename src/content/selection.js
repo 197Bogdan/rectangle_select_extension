@@ -91,7 +91,7 @@ export function finishSelection() {
     disableAutoScroll();
     state.selecting = false;
     // Make sure the latest selection is calculated while the append-only cache still exists.
-    updateSelectedCharacters();
+    updateSelectedText();
     hideSelectionBox();
 
 
@@ -108,16 +108,19 @@ export function finishSelection() {
     resetTextNodeRectsCache();
 }
 
-export function updateSelectedCharacters() {
+const segmenter = new Intl.Segmenter(undefined, {
+    granularity: "word"
+});
+
+export function updateSelectedText() {
     const selectionRect = { 
         left: Math.min(state.startX, state.endX), 
         right: Math.max(state.startX, state.endX), 
         top: Math.min(state.startY, state.endY), 
         bottom: Math.max(state.startY, state.endY) 
     };
-
     const highlight = new Highlight();
-    const selectedCharacters = [];
+    const selectedText = [];
 
     // -------------------------
     // Process cached nodes
@@ -138,25 +141,60 @@ export function updateSelectedCharacters() {
         }
 
         // =================================================
-        // BUILD CHARACTER CACHE
+        // BUILD TEXT RECTANGLE CACHE
         // =================================================
+        if (!entry.textRects) {
+            entry.textRects = [];
 
-        if (!entry.characterRects) {
-            entry.characterRects = [];
-            for (let i = 0; i < node.length; i++) {
-                const range = document.createRange();
-                range.setStart(node, i);
-                range.setEnd(node, i + 1);
-                const viewportRect = range.getBoundingClientRect();
-                const rect = { 
-                    left: viewportRect.left + window.scrollX, 
-                    top: viewportRect.top + window.scrollY, 
-                    right: viewportRect.right + window.scrollX, 
-                    bottom: viewportRect.bottom + window.scrollY, 
-                    width: viewportRect.width, 
-                    height: viewportRect.height 
-                };
-                entry.characterRects.push({ rect, range });
+            if (state.selectionMode === "characters") {
+                for (let i = 0; i < node.length; i++) {
+                    const range = document.createRange();
+                    range.setStart(node, i);
+                    range.setEnd(node, i + 1);
+
+                    const viewportRect = range.getBoundingClientRect();
+
+                    const rect = {
+                        left: viewportRect.left + window.scrollX,
+                        top: viewportRect.top + window.scrollY,
+                        right: viewportRect.right + window.scrollX,
+                        bottom: viewportRect.bottom + window.scrollY,
+                        width: viewportRect.width,
+                        height: viewportRect.height
+                    };
+
+                    entry.textRects.push({
+                        text: node.textContent[i],
+                        rect,
+                        range
+                    });
+                }
+            } 
+            else if (state.selectionMode === "words") {
+                for (const segment of segmenter.segment(node.textContent)) {
+                    if (!segment.isWordLike) {
+                        continue;
+                    }
+
+                    const range = document.createRange();
+                    range.setStart(node, segment.index);
+                    range.setEnd(node, segment.index + segment.segment.length);
+                    const viewportRect = range.getBoundingClientRect();
+                    const rect = {
+                        left: viewportRect.left + window.scrollX,
+                        top: viewportRect.top + window.scrollY,
+                        right: viewportRect.right + window.scrollX,
+                        bottom: viewportRect.bottom + window.scrollY,
+                        width: viewportRect.width,
+                        height: viewportRect.height
+                    };
+
+                    entry.textRects.push({
+                        text: segment.segment,
+                        rect,
+                        range
+                        });
+                    }
             }
         }
 
@@ -168,14 +206,13 @@ export function updateSelectedCharacters() {
             range.selectNodeContents(node);
             highlight.add(range);
 
-            // Still store individual characters because
+            // Still store individual characters/words because
             // reconstructText() needs them.
-            for (let i = 0; i < entry.characterRects.length; i++) {
-
-                const character = entry.characterRects[i];
-                selectedCharacters.push({
-                    character: node.textContent[i],
-                    rect: character.rect
+            for (let i = 0; i < entry.textRects.length; i++) {
+                const textRect = entry.textRects[i];
+                selectedText.push({
+                    text: textRect.text,
+                    rect: textRect.rect
                 });
             }
             continue;
@@ -185,25 +222,26 @@ export function updateSelectedCharacters() {
         // PARTIALLY SELECTED NODE
         // =================================================
 
-        for (let i = 0; i < entry.characterRects.length; i++) {
-            const character = entry.characterRects[i];
-            const rect = character.rect;
+        for (let i = 0; i < entry.textRects.length; i++) {
+            const textRect = entry.textRects[i];
+            const rect = textRect.rect;
 
             const isSelected = intersects(rect, selectionRect);
             if (!isSelected) {
                 continue;
             }
 
-            highlight.add(character.range);
+            highlight.add(textRect.range);
 
-            selectedCharacters.push({
-                character: node.textContent[i],
+            selectedText.push({
+                text: textRect.text,
                 rect
             });
         }
     }
     CSS.highlights.set("rectangle-selection", highlight);
-    state.selectedText = reconstructText(selectedCharacters);
+    state.selectedText = reconstructText(selectedText);
+    console.log(selectedText);
     state.hasSelection = state.selectedText.length > 0;
 }
 
@@ -224,7 +262,7 @@ export function scheduleSelectionUpdate() {
         }
 
         ensureTextNodeRectsCache();
-        updateSelectedCharacters();
+        updateSelectedText();
     });
 }
 

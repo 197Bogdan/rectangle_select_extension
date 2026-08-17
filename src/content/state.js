@@ -8,6 +8,8 @@ export const state = {
     selectedText: "",
     hasSelection: false,
 
+    selectionMode: "words", // words / characters
+
     mouseX: 0,
     mouseY: 0,
 

@@ -1,12 +1,14 @@
-export function reconstructText(characters) {
-    if (characters.length === 0) {
+// Reconstructs from either full words or individual characters, using their bounding rectangles to determine visual order and spacing.
+// items — an array of objects with the following properties: { text, rect }
+export function reconstructText(items) {
+    if (items.length === 0) {
         return "";
     }
 
     // Sort visually:
     // top → bottom
     // left → right
-    characters.sort((a, b) => {
+    items.sort((a, b) => {
         const verticalDifference =
             a.rect.top - b.rect.top;
 
@@ -19,35 +21,35 @@ export function reconstructText(characters) {
 
     let result = "";
 
-    let currentRowTop = characters[0].rect.top;
+    let currentRowTop = items[0].rect.top;
 
-    let previousCharacter = characters[0];
+    let previousItem = items[0];
 
-    result += previousCharacter.character;
+    result += previousItem.text;
 
-    for (let i = 1; i < characters.length; i++) {
-        const character = characters[i];
+    for (let i = 1; i < items.length; i++) {
+        const item = items[i];
 
-        const rowDifference = Math.abs(character.rect.top - currentRowTop);
+        const rowDifference = Math.abs(item.rect.top - currentRowTop);
 
         // New visual row
         if (rowDifference > 2) {
             result += "\n";
-            currentRowTop = character.rect.top;
+            currentRowTop = item.rect.top;
         }
 
         // Same row
         else {
-            const horizontalGap = character.rect.left - previousCharacter.rect.right;
+            const horizontalGap = item.rect.left - previousItem.rect.right;
 
             if (horizontalGap > 5) {
                 result += " ";
             }
         }
 
-        result += character.character;
+        result += item.text;
 
-        previousCharacter = character;
+        previousItem = item;
     }
 
     return result;
