@@ -1,3 +1,4 @@
+// Enabled toggle
 const toggle = document.getElementById("toggle");
 const status = document.getElementById("status");
 const browserAPI = globalThis.browser || globalThis.chrome;
@@ -31,4 +32,35 @@ toggle.addEventListener("click", async () => {
     await new Promise((resolve) => {
         storage.set({ enabled }, resolve);
     });
+});
+
+// Selection mode
+const charactersRadio = document.getElementById("characters");
+
+const wordsRadio = document.getElementById("words");
+
+browser.storage.local.get("selectionMode").then((result) => {
+    const mode = result.selectionMode ?? "characters";
+
+    if (mode === "words") {
+        wordsRadio.checked = true;
+    } else {
+        charactersRadio.checked = true;
+    }
+});
+
+charactersRadio.addEventListener("change", () => {
+    if (charactersRadio.checked) {
+        browser.storage.local.set({
+            selectionMode: "characters"
+        });
+    }
+});
+
+wordsRadio.addEventListener("change", () => {
+    if (wordsRadio.checked) {
+        browser.storage.local.set({
+            selectionMode: "words"
+        });
+    }
 });

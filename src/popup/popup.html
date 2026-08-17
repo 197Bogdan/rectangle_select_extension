@@ -14,10 +14,38 @@
         Rectangle Selection
     </button>
 
+    <div class="selection-mode">
+        <div class="selection-mode-title">
+            Selection mode
+        </div>
+
+        <label>
+            <input
+                type="radio"
+                name="selection-mode"
+                value="characters"
+                id="characters"
+            >
+            Characters
+        </label>
+
+        <label>
+            <input
+                type="radio"
+                name="selection-mode"
+                value="words"
+                id="words"
+            >
+            Words
+        </label>
+    </div>
+
     <div class="instructions">
         <p><strong>Alt + Shift + R</strong> — Toggle extension</p>
-        <p>When active, hold <strong>R + Left Click</strong> and move your cursor to rectangle select.</p>
-        <p>Make sure to close this popup so the page is in focus.</p>
+        <p><strong>How to use:</strong></p>
+        <p>1. Enable the extension by clicking the toggle button or using the keyboard shortcut.</p>
+        <p>2. Hold <strong>R + Left Click</strong> and move your cursor to rectangle select.</p>
+        <p><italic>Make sure to close this popup so the page is in focus.</italic></p>
     </div>
 
     <script src="popup.js"></script>

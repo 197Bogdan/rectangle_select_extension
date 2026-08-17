@@ -24,3 +24,21 @@ button {
 .instructions p {
     margin: 5px 0;
 }
+
+.selection-mode {
+    margin-top: 12px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+.selection-mode-title {
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.selection-mode label {
+    display: block;
+    margin: 5px 0;
+    cursor: pointer;
+}

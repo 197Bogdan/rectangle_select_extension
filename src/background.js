@@ -1,6 +1,11 @@
 const browserAPI = globalThis.browser || globalThis.chrome;
-const action = browserAPI.action || browserAPI.browserAction;
-const storage = browserAPI.storage.local;
+
+const action =
+    browserAPI.action ||
+    browserAPI.browserAction;
+
+const storage =
+    browserAPI.storage.local;
 
 function updateBadge(enabled) {
     if (typeof action.setBadgeText === "function") {
@@ -16,30 +21,42 @@ function updateBadge(enabled) {
     }
 }
 
+// Initialize badge.
 storage.get("enabled", (result) => {
     updateBadge(Boolean(result.enabled));
 });
 
-browserAPI.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local" || !changes.enabled) {
-        return;
+// React to settings changes.
+browserAPI.storage.onChanged.addListener(
+    (changes, areaName) => {
+        if (areaName !== "local") {
+            return;
+        }
+
+        if (changes.enabled) {
+            updateBadge(
+                Boolean(changes.enabled.newValue)
+            );
+        }
     }
+);
 
-    updateBadge(Boolean(changes.enabled.newValue));
-});
+// Keyboard shortcut.
+browserAPI.commands.onCommand.addListener(
+    async (command) => {
+        if (command !== "toggle-rectangle-selection") {
+            return;
+        }
 
-browserAPI.commands.onCommand.addListener(async (command) => {
-    if (command !== "toggle-rectangle-selection") {
-        return;
+        const result = await new Promise((resolve) => {
+            storage.get("enabled", resolve);
+        });
+
+        const enabled =
+            !(result.enabled ?? false);
+
+        await new Promise((resolve) => {
+            storage.set({ enabled }, resolve);
+        });
     }
-
-    const result = await new Promise((resolve) => {
-        storage.get("enabled", resolve);
-    });
-
-    const enabled = !(result.enabled ?? false);
-
-    await new Promise((resolve) => {
-        storage.set({ enabled }, resolve);
-    });
-});
+);

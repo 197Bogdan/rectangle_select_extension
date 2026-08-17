@@ -26,7 +26,7 @@ selectionBox.style.display = "none";
 
 function initSelectionBox() {
     if (selectionBox.isConnected) {
-        console.log("selectionBox already connected");
+        debugLog("selectionBox already connected");
         return;
     }
 
@@ -172,10 +172,6 @@ export function updateSelectedText() {
             } 
             else if (state.selectionMode === "words") {
                 for (const segment of segmenter.segment(node.textContent)) {
-                    if (!segment.isWordLike) {
-                        continue;
-                    }
-
                     const range = document.createRange();
                     range.setStart(node, segment.index);
                     range.setEnd(node, segment.index + segment.segment.length);
@@ -194,7 +190,7 @@ export function updateSelectedText() {
                         rect,
                         range
                         });
-                    }
+                }
             }
         }
 
@@ -241,7 +237,7 @@ export function updateSelectedText() {
     }
     CSS.highlights.set("rectangle-selection", highlight);
     state.selectedText = reconstructText(selectedText);
-    console.log(selectedText);
+    debugLog(selectedText);
     state.hasSelection = state.selectedText.length > 0;
 }
 

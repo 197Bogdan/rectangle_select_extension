@@ -32,6 +32,20 @@ browserAPI.storage.onChanged.addListener((changes, area) => {
     }
 });
 
+browserAPI.storage.local.get("selectionMode").then((result) => {
+    state.selectionMode = result.selectionMode ?? "characters";
+});
+
+browser.storage.onChanged.addListener(
+    (changes, area) => {
+        if (area !== "local" || !changes.selectionMode) {
+            return;
+        }
+
+        state.selectionMode = changes.selectionMode.newValue;
+    }
+);
+
 
 // -------------------------
 // Watch for dynamically generated
