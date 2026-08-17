@@ -1,6 +1,6 @@
 import { state } from "./state.js";
 import { ensureTextNodeRectsCache, resetTextNodeRectsCache, getTextNodeRectsCache } from "./textRectCache.js";
-import { enableAutoScroll, disableAutoScroll } from "./autoScroll.js";
+import { enableAutoScroll, disableAutoScroll } from "./autoscroll.js";
 import { debugLog } from "./debug.js";
 import { intersects, contains } from "./geometry.js";
 import { reconstructText } from "./textReconstruction.js";
@@ -14,14 +14,24 @@ highlightStyle.textContent = `
 `;
 document.documentElement.appendChild(highlightStyle);
 
-export const selectionBox = document.createElement("div");
+const selectionBox = document.createElement("div");
+
+selectionBox.id = "rectangle-select-selection-box";
 selectionBox.style.position = "fixed";
 selectionBox.style.pointerEvents = "none";
 selectionBox.style.zIndex = "2147483647";
 selectionBox.style.border = "2px solid #4285f4";
 selectionBox.style.background = "rgba(66, 133, 244, 0.15)";
 selectionBox.style.display = "none";
-document.documentElement.appendChild(selectionBox);
+
+function initSelectionBox() {
+    if (selectionBox.isConnected) {
+        console.log("selectionBox already connected");
+        return;
+    }
+
+    document.documentElement.appendChild(selectionBox);
+}
 
 export function updateSelectionBox() {
     const left = Math.min(state.startX, state.endX) - window.scrollX;
@@ -46,12 +56,12 @@ export function hideSelectionBox() {
 // ============================================================
 // SELECTION LOGIC
 // ============================================================
-
 export function startSelection() {
-
     if (state.selecting) {
         return;
     }
+
+    initSelectionBox();
 
     state.selecting = true;
 

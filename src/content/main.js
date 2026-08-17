@@ -1,5 +1,5 @@
 import { state } from "./state.js";
-import { enableAutoScroll, disableAutoScroll } from "./autoScroll.js";
+import { enableAutoScroll, disableAutoScroll } from "./autoscroll.js";
 import { debugLog } from "./debug.js";
 import { resetTextNodeRectsCache } from "./textRectCache.js";
 import { updateSelectionBox, hideSelectionBox, 
