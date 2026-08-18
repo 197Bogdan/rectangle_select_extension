@@ -161,6 +161,7 @@ function expandTextNodeRectsCache() {
     }
 }
 
+
 function isTextNodeVisible(node) {
     let element = node.parentElement;
 
@@ -169,6 +170,39 @@ function isTextNodeVisible(node) {
 
         if (style.display === "none" || style.visibility === "hidden") {
             return false;
+        }
+
+        const overflowX = style.overflowX;
+        const overflowY = style.overflowY;
+        const clipsX = overflowX === "hidden";
+        const clipsY = overflowY === "hidden";
+
+        if (clipsX || clipsY) {
+            const elementRect = element.getBoundingClientRect();
+
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            const textRect = range.getBoundingClientRect();
+
+            if (
+                clipsX &&
+                (
+                    textRect.right <= elementRect.left ||
+                    textRect.left >= elementRect.right
+                )
+            ) {
+                return false;
+            }
+
+            if (
+                clipsY &&
+                (
+                    textRect.bottom <= elementRect.top ||
+                    textRect.top >= elementRect.bottom
+                )
+            ) {
+                return false;
+            }
         }
 
         element = element.parentElement;
