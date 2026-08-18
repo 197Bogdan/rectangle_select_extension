@@ -40,23 +40,3 @@ browserAPI.storage.onChanged.addListener(
         }
     }
 );
-
-// Keyboard shortcut.
-browserAPI.commands.onCommand.addListener(
-    async (command) => {
-        if (command !== "toggle-rectangle-selection") {
-            return;
-        }
-
-        const result = await new Promise((resolve) => {
-            storage.get("enabled", resolve);
-        });
-
-        const enabled =
-            !(result.enabled ?? false);
-
-        await new Promise((resolve) => {
-            storage.set({ enabled }, resolve);
-        });
-    }
-);

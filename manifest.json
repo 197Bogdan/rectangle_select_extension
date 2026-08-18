@@ -37,13 +37,5 @@
     "scripts": [
       "background.js"
     ]
-  },
-  "commands": {
-    "toggle-rectangle-selection": {
-      "suggested_key": {
-        "default": "Alt+Shift+R"
-      },
-      "description": "Toggle Rectangle Selection"
-    }
   }
 }
