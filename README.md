@@ -6,6 +6,10 @@ Useful for selecting columns from tables, multi-column layouts, code, and other 
 
 Install at https://addons.mozilla.org/en-US/firefox/addon/rectangle-selection/
 
+## Demo Images
+![Example 1](demo_images/399689.jpg)
+![Example 2](demo_images/399690.jpg)
+
 ## Features
 Rectangle selection — Select text by dragging over a rectangular area of a webpage.
 Character or word selection — Toggle between selecting individual characters and full words, depending on the content.
@@ -34,7 +38,11 @@ npm run build
 
 The resulting extension package can be loaded into Firefox as a temporary add-on from about:debugging.
 
-Project structure
+Built on Windows 10 with node v18.15.0, but it should work on any platform.
+
+The extension is built at "rectangle_select_release.zip". As an intermediary step, a "dist" folder is also created, containing the same files as the zip.
+
+## Project structure
 manifest.json — Extension manifest
 src/ — Extension source code
 popup/ — Extension popup and settings
