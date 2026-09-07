@@ -7,8 +7,8 @@ Useful for selecting columns from tables, multi-column layouts, code, and other 
 Install at https://addons.mozilla.org/en-US/firefox/addon/rectangle-selection/
 
 ## Demo Images
-![Example 1](demo_images/399689.jpg)
-![Example 2](demo_images/399690.jpg)
+![Example 1](demo_images/399689.png)
+![Example 2](demo_images/399690.png)
 
 ## Features
 Rectangle selection — Select text by dragging over a rectangular area of a webpage.
