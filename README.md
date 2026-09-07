@@ -12,9 +12,13 @@ Install at https://addons.mozilla.org/en-US/firefox/addon/rectangle-selection/
 
 ## Features
 Rectangle selection — Select text by dragging over a rectangular area of a webpage.
+
 Character or word selection — Toggle between selecting individual characters and full words, depending on the content.
+
 Selection while scrolling — Continue extending a selection while scrolling through the page, allowing you to select content that doesn't fit on screen.
+
 Performance optimizations — Uses a cached set of text nodes and their positions to avoid repeatedly calculating text geometry, allowing the extension to work on pages containing large amounts of text.
+
 ## How to use
 Enable Rectangle Text Selection using the extension button or Alt+Shift+R.
 Hold Shift and drag over the area you want to select.
@@ -34,6 +38,7 @@ Rectangle selection allows you to select based on the visual position of text ra
 Install the dependencies and run the build script:
 
 npm install
+
 npm run build
 
 The resulting extension package can be loaded into Firefox as a temporary add-on from about:debugging.
@@ -44,9 +49,10 @@ The extension is built at "rectangle_select_release.zip". As an intermediary ste
 
 ## Project structure
 manifest.json — Extension manifest
-src/ — Extension source code
-popup/ — Extension popup and settings
-content/ — Rectangle selection and text-processing logic
+
+src/content — Rectangle selection and text-processing logic
+
+src/popup — Extension UI
 ## Contributing
 
 Contributions and improvements are welcome. Please open an issue to discuss changes, suggestions or bugs.
